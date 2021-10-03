@@ -3,9 +3,11 @@ from tkinter import *
 
 import sqlite3
 
+import constants
+
 class Agenda:
 
-    db_name = "database.db"
+    db_name = constants.DB_NAME
 
     def __init__(self,window):
         self.wind = window
@@ -67,12 +69,15 @@ class Agenda:
         # Filling the rows
         self.get_contacts()
 
-    def validation(self):
-        return len(self.name.get()) != 0 and len(self.telephone.get()) != 0 and len(self.email.get()) != 0 and len(self.description.get()) != 0
+    def validation(self, *params):
+        for i in params:
+            if len(i) == 0:
+                return False
+        return True
 
     def add_contact(self):
-        if self.validation():
-            query = "INSERT INTO agenda VALUES(NULL, ?, ?, ?, ?)"
+        if self.validation(self.name.get(), self.telephone.get(), self.email.get(), self.description.get()):
+            query = constants.QUERY_INSERT
             parameters = (self.name.get(), self.telephone.get(), self.email.get(), self.description.get())
             self.run_query(query, parameters)
             self.messsage["text"] = "Contact {} added successfully".format(self.name.get())
@@ -81,7 +86,7 @@ class Agenda:
             self.email.delete(0, END)
             self.description.delete(0, END)
         else:
-            self.messsage["text"] = "Name, telephone, email and description are required"
+            self.messsage["text"] = constants.ERR_MISSING_PARAMS
         self.get_contacts()
 
     def delete_contact(self):
@@ -89,11 +94,11 @@ class Agenda:
         try:
             self.tree.item(self.tree.selection())["text"][0]
         except IndexError as error:
-            self.messsage["text"] = "Please select a record"
+            self.messsage["text"] = constants.ERR_REC_NOT_SELECTED
             return
         self.messsage["text"] = ""
         name = self.tree.item(self.tree.selection())["text"]
-        query = "DELETE FROM agenda WHERE name = ?"
+        query = constants.QUERY_DELETE
         self.run_query(query, (name,))
         self.messsage["text"] = " Record {} deleted successfully".format(name)
         self.get_contacts()
@@ -103,7 +108,7 @@ class Agenda:
         try:
             self.tree.item(self.tree.selection())["text"][0]
         except IndexError as error:
-            self.messsage["text"] = "Please select a record"
+            self.messsage["text"] = constants.ERR_REC_NOT_SELECTED
             return
         self.messsage["text"] = ""
         name            = self.tree.item(self.tree.selection())["text"]
@@ -115,45 +120,37 @@ class Agenda:
         self.edit_wind.title = "Edit contact"
 
         # Old name
-
         Label(self.edit_wind, text = "Old name: ").grid(row = 0, column = 1)
         Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = name), state = "readonly").grid(row = 0, column = 2)
 
         # New name
-
         Label(self.edit_wind, text = "New name: ").grid(row = 0, column = 3)
         new_name = Entry(self.edit_wind)
         new_name.grid(row = 0, column = 4)
 
         # Old telephone
-
         Label(self.edit_wind, text = "Old telephone: ").grid(row= 1, column = 1)
         Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_telephone), state = "readonly").grid(row = 1, column = 2)
 
         # Old email
-        
         Label(self.edit_wind, text = "Old email: ").grid(row= 2, column = 1)
         Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_email), state = "readonly").grid(row = 2, column = 2)
 
         # Old description
-        
         Label(self.edit_wind, text = "Old description: ").grid(row= 3, column = 1)
         Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_description), state = "readonly").grid(row = 3, column = 2)
 
         # New telephone 
-
         Label(self.edit_wind, text = "New telephone: ").grid(row = 1, column = 3)
         new_telephone = Entry(self.edit_wind)
         new_telephone.grid(row = 1, column = 4)
 
         # New email
-        
         Label(self.edit_wind, text = "New email: ").grid(row = 2, column = 3)
         new_email = Entry(self.edit_wind)
         new_email.grid(row = 2, column = 4)
 
         # New description
-        
         Label(self.edit_wind, text = "New description: ").grid(row = 3, column = 3)
         new_description = Entry(self.edit_wind)
         new_description.grid(row = 3, column = 4)
@@ -171,11 +168,15 @@ class Agenda:
         
 
     def edit_records(self, new_name, name, new_telephone, new_email, new_description, old_telephone, old_email, old_description):
-        query = "UPDATE agenda SET name = ?, telephone = ?, email = ?, description = ?  WHERE name = ? AND telephone = ? AND email = ? AND description = ?"
-        parameters = (new_name, new_telephone, new_email, new_description, name, old_telephone, old_email, old_description)
-        self.run_query(query, parameters)
-        self.edit_wind.destroy()
-        self.messsage["text"] = "Contact {} updated successfully".format(name)
+        if self.validation(new_name, new_telephone, new_email, new_description):
+            query = constants.QUERY_UPDATE
+            parameters = (new_name, new_telephone, new_email, new_description, name, old_telephone, old_email, old_description)
+            self.run_query(query, parameters)
+            self.edit_wind.destroy()
+            self.messsage["text"] = "Contact {} updated successfully".format(name)
+        else:
+            self.messsage["text"] = constants.ERR_MISSING_PARAMS
+            
         self.get_contacts()
 
     def run_query(self, query, parameters=()):
@@ -190,13 +191,16 @@ class Agenda:
         records = self.tree.get_children()
         for element in records:
             self.tree.delete(element)
-        query = "SELECT * FROM agenda ORDER BY name DESC"
+        query = constants.QUERY_GET
         db_rows = self.run_query(query)
 
         # Filling data
         for row in db_rows:
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
 
+        
+
+import time
 if __name__== '__main__':
     window = Tk()
     application = Agenda(window)
