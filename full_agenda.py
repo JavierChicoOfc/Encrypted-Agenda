@@ -12,6 +12,8 @@ import sqlite3
 
 import base64
 
+import json
+
 import constants
 
 # Path
@@ -333,6 +335,17 @@ class MainLogIn:
         """
         Auxiliar method of register that write a new file with the new user´s data
         """
+        '''
+        username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
+        password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
+        
+        with open("users.json", "r+", encoding="utf-8") as users_file:
+            users_data = json.load(users_file)
+            users_data[username_info] = password_info
+            json.dump(users_data, users_file, indent=4)'''
+        
+        
+        
         username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
         password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
 
