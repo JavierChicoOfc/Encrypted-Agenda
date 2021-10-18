@@ -32,7 +32,7 @@ class Agenda:
         self.wind.resizable(False,False)
 
         agenda_icon_path=path+"\icons\lock_agenda.ico"
-        self.wind.iconbitmap(agenda_icon_path)
+        if os.name == "nt": self.wind.iconbitmap(agenda_icon_path)
 
         # Creating a Frame Containter
         
@@ -271,7 +271,7 @@ class MainLogIn:
         self.register_screen.resizable(False,False)
 
         login_icon_path=path+"\icons\login_icon.ico"
-        self.register_screen.iconbitmap(login_icon_path)
+        if os.name == "nt": self.register_screen.iconbitmap(login_icon_path)
         
     
         self.username = StringVar()
@@ -299,7 +299,7 @@ class MainLogIn:
         self.login_screen.geometry("300x250")
         self.login_screen.resizable(False,False)
         login_icon_path=path+"\icons\login_icon.ico"
-        self.login_screen.iconbitmap(login_icon_path)
+        if os.name == "nt": self.login_screen.iconbitmap(login_icon_path)
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
     
@@ -365,7 +365,7 @@ class MainLogIn:
         self.login_success_screen.resizable(False,False)
         
         login_icon_path=path+"\icons\login_icon.ico"
-        self.login_success_screen.iconbitmap(login_icon_path)
+        if os.name == "nt": self.login_success_screen.iconbitmap(login_icon_path)
         Label(self.login_success_screen, text="Login Success").pack()
         Button(self.login_success_screen, text="OK", command=self.delete_login_success).pack()
         
@@ -403,7 +403,7 @@ class MainLogIn:
         self.user_not_found_screen.geometry("150x100")
         self.user_not_found_screen.resizable(False,False)
         login_icon_path=path+"\icons\login_icon.ico"
-        self.user_not_found_screen.iconbitmap(login_icon_path)
+        if os.name == "nt": self.user_not_found_screen.iconbitmap(login_icon_path)
         Label(self.user_not_found_screen, text="User Not Found").pack()
         Button(self.user_not_found_screen, text="OK", command=self.delete_user_not_found_screen).pack()
     
@@ -435,7 +435,20 @@ if __name__== '__main__':
     main_login = Tk()
     application = MainLogIn(main_login)
 
-    login_icon_path=path+"\icons\login_icon.ico"
-    main_login.iconbitmap(login_icon_path)
-
+    if os.name == "nt":
+        login_icon_path = path + "\icons\login_icon.ico"
+        main_login.iconbitmap(login_icon_path)
+    #else:
+    #    login_icon_path = path + "/icons/login_icon.xbm"
+        
     main_login.mainloop()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

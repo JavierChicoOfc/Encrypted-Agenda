@@ -6,7 +6,7 @@ import sqlite3
 import constants
 
 class Agenda:
-
+    
     db_name = constants.DB_NAME
 
     def __init__(self,window):
@@ -199,8 +199,6 @@ class Agenda:
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
 
         
-
-import time
 if __name__== '__main__':
     window = Tk()
     application = Agenda(window)
@@ -211,3 +209,5 @@ if __name__== '__main__':
     #window.configure(bg="white")
 
     window.mainloop()
+
+
