@@ -38,8 +38,9 @@ class Agenda:
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
 
-        agenda_icon_path=path+"\icons\lock_agenda.ico"
-        if os.name == "nt": self.wind.iconbitmap(agenda_icon_path)
+        self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
+
+        self.wind.iconbitmap(self.agenda_icon_path)
 
         # Creating a Frame Containter
         
@@ -262,7 +263,10 @@ class MainLogIn:
         self.main_login.geometry("300x250")
         self.main_login.title("Account Login")
         self.main_login.resizable(False,False)
-        self.contador = 0
+
+        self.login_icon_path = os.getcwd() + "\icons\login_icon.ico"
+        self.main_login.iconbitmap(self.login_icon_path)
+        
         
         Label(text="Select Your Choice", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
         Label(text="").pack()
@@ -279,10 +283,7 @@ class MainLogIn:
         self.register_screen.geometry("300x250")
         self.register_screen.resizable(False,False)
 
-        """
-        login_icon_path=path+"\icons\login_icon.ico"
-        self.password_not_recog_screen.iconbitmap(login_icon_path)
-        """
+        self.register_screen.iconbitmap(self.login_icon_path)
         
         self.username = StringVar()
         self.password = StringVar()
@@ -310,10 +311,7 @@ class MainLogIn:
         self.login_screen.geometry("300x250")
         self.login_screen.resizable(False,False)
 
-        """
-        login_icon_path=path+"\icons\login_icon.ico"
-        self.password_not_recog_screen.iconbitmap(login_icon_path)
-        """
+        self.login_screen.iconbitmap(self.login_icon_path)
 
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
@@ -335,56 +333,53 @@ class MainLogIn:
         """
         Auxiliar method of register that write a new file with the new user´s data
         """
-        '''
-        username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
-        password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
-        
-        with open("users.json", "r+", encoding="utf-8") as users_file:
-            users_data = json.load(users_file)
+
+        if self.username.get() == "" or self.password.get() == "":
+            Label(self.register_screen, text="User or password is invalid", fg="red", font=("Open Sans", 14)).pack()
+
+        else:
+            username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
+            password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
+
+            print(username_info)
+
+
+            with open("users.json", "r", encoding="utf-8") as users_file:
+                users_data = json.load(users_file)
+
             users_data[username_info] = password_info
-            json.dump(users_data, users_file, indent=4)'''
-        
-        
-        
-        username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
-        password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
 
-        print ("USERNAME INFO",username_info)
-        self.contador+=1
-        filename = "User"+str(self.contador)
+            with open("users.json", "w", encoding="utf-8") as users_file:
+                json.dump(users_data, users_file, indent=4)
 
-        file = open(filename, "w",encoding = "latin-1")
-        file.write(username_info + "\n")
-        file.write(password_info)
-        file.close()
-    
-        self.username_entry.delete(0, END)
-        self.password_entry.delete(0, END)
-    
-        Label(self.register_screen, text="Registration Success", fg="green", font=("Open Sans", 14)).pack()
+            self.username_entry.delete(0, END)
+            self.password_entry.delete(0, END)
+
+            Label(self.register_screen, text="Registration Success", fg="green", font=("Open Sans", 14)).pack()
     
     def login_verify(self):
         """
         Auxiliar method of login that verifies the log-in checking the data files
         """
-        username1 = self.username_verify.get()
-        password1 = self.password_verify.get()
+        username1 = base64.b64encode(cripto.hash(self.username_verify.get())).decode("ascii")
+        password1 = base64.b64encode(cripto.hash(self.password_verify.get())).decode("ascii")
+
         self.username_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
     
         list_of_files = os.listdir()
 
-        if username1 in list_of_files:
-            file1 = open(username1, "r")
-            verify = file1.read().splitlines()
-            if password1 in verify:
-                self.login_sucess()
-    
-            else:
-                self.password_not_recognised()
+        
+        file1 = open("users.json", "r")
+        verify = json.load(file1)
+        if password1 in verify.values():
+            self.login_sucess()
     
         else:
-            self.user_not_found()
+            self.password_not_recognised()
+    
+        file1.close()
+        #self.user_not_found()
     
     def login_sucess(self):
         """
@@ -395,11 +390,8 @@ class MainLogIn:
         self.login_success_screen.geometry("150x100")
         self.login_success_screen.resizable(False,False)
         
-        """
-        login_icon_path=path+"\icons\login_icon.ico"
-        self.password_not_recog_screen.iconbitmap(login_icon_path)
-        """
-
+        self.login_success_screen.iconbitmap(self.login_icon_path)
+        
         Label(self.login_success_screen, text="Login Success").pack()
         Button(self.login_success_screen, text="OK", command=self.delete_login_success).pack()
         
@@ -424,10 +416,7 @@ class MainLogIn:
         self.password_not_recog_screen.geometry("150x100")
         self.password_not_recog_screen.resizable(False,False)
 
-        """
-        login_icon_path=path+"\icons\login_icon.ico"
-        self.password_not_recog_screen.iconbitmap(login_icon_path)
-        """
+        self.password_not_recog_screen.iconbitmap(self.login_icon_path)
         
         Label(self.password_not_recog_screen, text="Invalid Password ").pack()
         Button(self.password_not_recog_screen, text="OK", command=self.delete_password_not_recognised).pack()
@@ -441,10 +430,7 @@ class MainLogIn:
         self.user_not_found_screen.geometry("150x100")
         self.user_not_found_screen.resizable(False,False)
 
-        """
-        login_icon_path=path+"\icons\login_icon.ico"
-        self.user_not_found_screen.iconbitmap(login_icon_path)
-        """
+        self.user_not_found_screen.iconbitmap(self.login_icon_path)
 
         Label(self.user_not_found_screen, text="User Not Found").pack()
         Button(self.user_not_found_screen, text="OK", command=self.delete_user_not_found_screen).pack()
@@ -477,15 +463,6 @@ if __name__== '__main__':
     cripto=Criptograpy()
     main_login = Tk()
     application = MainLogIn(main_login)
-
-    path = os.getcwd()
-
-    """
-    login_icon_path = path + "\icons\login_icon.ico"
-    print("PATH",login_icon_path)
-    photo= tk.PhotoImage()
-    main_login.iconphoto(False,login_icon_path)
-    """
 
     main_login.mainloop()
     

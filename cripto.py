@@ -21,7 +21,7 @@ class Criptograpy:
 
     def hash(self, text):
         """
-        Hash a given text
+        Hash a given text (Used to hash usernames and passwords)
         """
         kdf = Scrypt(salt=self.salt_hash, length=32, n=2**14, r=8, p=1)#, backend=ScryptBackend)
 
@@ -57,7 +57,7 @@ class Criptograpy:
 
     def symetric_cipher(self, key, text):
         """
-        Use the generated symetric key to cipher a given text
+        Use the generated symetric key to cipher a given text (Used to cipher the data in the database)
         """
         self.cipher = Cipher(algorithms.AES(key), modes.CTR(self.iv))
 
