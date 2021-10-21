@@ -16,9 +16,7 @@ import json
 
 import constants
 
-# Path
-
-
+import time
 
 #[------------Classes------------]
 
@@ -30,13 +28,14 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self,agenda_screen):
+    def __init__(self,agenda_screen,session_key):
         """
         Constructor method for Agenda Class
         """
         self.wind = agenda_screen
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
+        self.session_key = session_key
 
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
@@ -97,6 +96,8 @@ class Agenda:
 
         # Filling the rows
         self.get_contacts()
+
+        self.encrypt_on_close()
 
     def validation(self, *params):
         """
@@ -227,7 +228,7 @@ class Agenda:
         """
         Run a specified query (parameter)
         """
-        with sqlite3.connect(self.db_name) as conn:
+        with sqlite3.connect(self.db_name,timeout=15) as conn:
             cursor = conn.cursor()
             result = cursor.execute(query, parameters)
             conn.commit()
@@ -247,6 +248,26 @@ class Agenda:
         # Filling data
         for row in db_rows:
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
+
+    def decrypt_on_open(self):
+        pass
+    def encrypt_on_close(self):
+        
+        query_get = constants.QUERY_GET
+        db_rows = self.run_query(query_get)
+
+        query_update = constants.QUERY_UPDATE
+        
+        lista_aux = []
+        lista_cifrada = []
+        for i in db_rows:
+            for j in i:
+                lista_aux.append(j)
+                lista_cifrada.append(cripto.hmac(self.session_key,cripto.symetric_cipher(self.session_key,j)))
+            parameters = (lista_cifrada[1],lista_cifrada[2],lista_cifrada[3],lista_cifrada[4],lista_aux[1],lista_aux[2],lista_aux[3],lista_aux[4])
+            self.run_query(query_update, parameters)
+            
+            
 
 #[------MainLogIn------]
       
@@ -338,14 +359,17 @@ class MainLogIn:
             Label(self.register_screen, text="User or password is invalid", fg="red", font=("Open Sans", 14)).pack()
 
         else:
-            username_info = base64.b64encode(cripto.hash(self.username.get())).decode("ascii")
-            password_info = base64.b64encode(cripto.hash(self.password.get())).decode("ascii")
-
-            print(username_info)
-
+            username_info = base64.b64encode(cripto.hash_scrypt(self.username.get())).decode("ascii")
+            password_info = base64.b64encode(cripto.hash_scrypt(self.password.get())).decode("ascii")
 
             with open("users.json", "r", encoding="utf-8") as users_file:
                 users_data = json.load(users_file)
+
+            # Fix duplicated users
+
+            if username_info in users_data.keys():
+                Label(self.register_screen, text="User already taken", fg="red", font=("Open Sans", 14)).pack()
+                return
 
             users_data[username_info] = password_info
 
@@ -361,27 +385,37 @@ class MainLogIn:
         """
         Auxiliar method of login that verifies the log-in checking the data files
         """
-        username1 = base64.b64encode(cripto.hash(self.username_verify.get())).decode("ascii")
-        password1 = base64.b64encode(cripto.hash(self.password_verify.get())).decode("ascii")
+        session_key = cripto.hash_scrypt(self.username_verify.get())
+        username1 = base64.b64encode(cripto.hash_scrypt(self.username_verify.get())).decode("ascii")
+        password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get())).decode("ascii")
 
         self.username_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
-    
-        list_of_files = os.listdir()
-
         
         file1 = open("users.json", "r")
         verify = json.load(file1)
-        if password1 in verify.values():
-            self.login_sucess()
-    
-        else:
-            self.password_not_recognised()
-    
+
+        password_not_recognised = False
+        user_not_found = False
+
+        for key in verify.keys():
+            if username1==key:
+                if verify[key]==password1:
+                    self.login_sucess(session_key)      
+                else:
+                    password_not_recognised = True   
+            else:
+                user_not_found = True
+
         file1.close()
-        #self.user_not_found()
-    
-    def login_sucess(self):
+
+        if password_not_recognised:
+            self.password_not_recognised()
+
+        if user_not_found and password_not_recognised == False:
+            self.user_not_found()
+
+    def login_sucess(self,session_key):
         """
         Open the login success screen
         """
@@ -403,7 +437,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen)
+        Agenda(agenda_screen,session_key)
         agenda_screen.mainloop()
        
     
@@ -460,7 +494,7 @@ if __name__== '__main__':
     """
     Initialize the Register & Log In screen
     """
-    cripto=Criptograpy()
+    cripto = Criptograpy()
     main_login = Tk()
     application = MainLogIn(main_login)
 
