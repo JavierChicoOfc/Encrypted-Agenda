@@ -28,7 +28,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self,agenda_screen,session_key):
+    def __init__(self, agenda_screen, session_key):
         """
         Constructor method for Agenda Class
         """
@@ -39,7 +39,7 @@ class Agenda:
 
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
-        self.wind.iconbitmap(self.agenda_icon_path)
+        #self.wind.iconbitmap(self.agenda_icon_path)
 
         # Creating a Frame Containter
         
@@ -93,10 +93,8 @@ class Agenda:
 
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
-
         # Filling the rows
         self.get_contacts()
-
         self.encrypt_on_close()
 
     def validation(self, *params):
@@ -239,35 +237,62 @@ class Agenda:
         Auxiliar method that obtains the contacts from the database
         """
         # Cleaning table
+        # store in 'records' the ids of the ttk element self.tree (nothing to do with db)
         records = self.tree.get_children()
         for element in records:
             self.tree.delete(element)
+        
         query = constants.QUERY_GET
         db_rows = self.run_query(query)
-
         # Filling data
         for row in db_rows:
+            print("actualizando", row)
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
+            
 
     def decrypt_on_open(self):
         pass
+        
     def encrypt_on_close(self):
-        
-        query_get = constants.QUERY_GET
-        db_rows = self.run_query(query_get)
-
-        query_update = constants.QUERY_UPDATE
-        
-        lista_aux = []
+        return
+        db_rows = self.run_query(constants.QUERY_GET)
+        '''lista_aux = []
         lista_cifrada = []
         for i in db_rows:
             for j in i:
                 lista_aux.append(j)
-                lista_cifrada.append(cripto.hmac(self.session_key,cripto.symetric_cipher(self.session_key,j)))
-            parameters = (lista_cifrada[1],lista_cifrada[2],lista_cifrada[3],lista_cifrada[4],lista_aux[1],lista_aux[2],lista_aux[3],lista_aux[4])
-            self.run_query(query_update, parameters)
-            
-            
+                lista_cifrada.append(
+                	cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, j) )
+                	)
+            parameters = (lista_cifrada[1], lista_aux[1], lista_cifrada[2], lista_cifrada[3], lista_cifrada[4], lista_aux[2], lista_aux[3], lista_aux[4])
+            #print(parameters)'''
+        param_list = []
+        for row in db_rows:
+            plain_data = []
+            cipher_data = []
+            for element in row:
+                plain_data.append(element)
+                cipher_data.append(
+                        cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, element) )
+                )
+            parameters = (
+                          cipher_data[1], plain_data[1],
+                          cipher_data[2], cipher_data[3],
+                          cipher_data[4], plain_data[2],
+                          plain_data[3], plain_data[4]
+                        )
+            param_list.append(parameters)
+            print(parameters)
+            #hasta aquí todo bien
+            #self.run_query(constants.QUERY_UPDATE, parameters)
+        print("PAPARAJOTE")
+        i = 0
+        for foo in db_rows:
+                print(i)
+                self.run_query(constants.QUERY_UPDATE, param_list[i])
+                i += 1
+        self.get_contacts()
+
 
 #[------MainLogIn------]
       
@@ -286,7 +311,7 @@ class MainLogIn:
         self.main_login.resizable(False,False)
 
         self.login_icon_path = os.getcwd() + "\icons\login_icon.ico"
-        self.main_login.iconbitmap(self.login_icon_path)
+        #self.main_login.iconbitmap(self.login_icon_path)
         
         
         Label(text="Select Your Choice", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
@@ -304,7 +329,7 @@ class MainLogIn:
         self.register_screen.geometry("300x250")
         self.register_screen.resizable(False,False)
 
-        self.register_screen.iconbitmap(self.login_icon_path)
+        #self.register_screen.iconbitmap(self.login_icon_path)
         
         self.username = StringVar()
         self.password = StringVar()
@@ -332,7 +357,7 @@ class MainLogIn:
         self.login_screen.geometry("300x250")
         self.login_screen.resizable(False,False)
 
-        self.login_screen.iconbitmap(self.login_icon_path)
+        #self.login_screen.iconbitmap(self.login_icon_path)
 
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
@@ -385,7 +410,7 @@ class MainLogIn:
         """
         Auxiliar method of login that verifies the log-in checking the data files
         """
-        session_key = cripto.hash_scrypt(self.username_verify.get())
+        session_key = cripto.pbkdf2hmac(self.password_verify.get())
         username1 = base64.b64encode(cripto.hash_scrypt(self.username_verify.get())).decode("ascii")
         password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get())).decode("ascii")
 
@@ -394,20 +419,21 @@ class MainLogIn:
         
         file1 = open("users.json", "r")
         verify = json.load(file1)
+        file1.close()
 
-        password_not_recognised = False
-        user_not_found = False
+        password_not_recognised = user_not_found = False
 
-        for key in verify.keys():
-            if username1==key:
-                if verify[key]==password1:
-                    self.login_sucess(session_key)      
+        for user in verify.keys():
+            if username1 == user:
+                if verify[user] == password1:
+                    self.login_sucess(session_key)
+                    user_not_found = False  
+                    password_not_recognised = False
                 else:
                     password_not_recognised = True   
             else:
                 user_not_found = True
 
-        file1.close()
 
         if password_not_recognised:
             self.password_not_recognised()
@@ -415,29 +441,29 @@ class MainLogIn:
         if user_not_found and password_not_recognised == False:
             self.user_not_found()
 
-    def login_sucess(self,session_key):
+    def login_sucess(self, session_key):
         """
         Open the login success screen
+        """
         """
         self.login_success_screen = Toplevel(self.login_screen)
         self.login_success_screen.title("Success")
         self.login_success_screen.geometry("150x100")
         self.login_success_screen.resizable(False,False)
         
-        self.login_success_screen.iconbitmap(self.login_icon_path)
+        #self.login_success_screen.iconbitmap(self.login_icon_path)
         
         Label(self.login_success_screen, text="Login Success").pack()
         Button(self.login_success_screen, text="OK", command=self.delete_login_success).pack()
-        
+        """
         # Delete Login Screen & MainLogin Screen
-
         self.login_screen.destroy()
         self.main_login.destroy()
 
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen,session_key)
+        Agenda(agenda_screen, session_key)
         agenda_screen.mainloop()
        
     
@@ -450,7 +476,7 @@ class MainLogIn:
         self.password_not_recog_screen.geometry("150x100")
         self.password_not_recog_screen.resizable(False,False)
 
-        self.password_not_recog_screen.iconbitmap(self.login_icon_path)
+        #self.password_not_recog_screen.iconbitmap(self.login_icon_path)
         
         Label(self.password_not_recog_screen, text="Invalid Password ").pack()
         Button(self.password_not_recog_screen, text="OK", command=self.delete_password_not_recognised).pack()
@@ -464,7 +490,7 @@ class MainLogIn:
         self.user_not_found_screen.geometry("150x100")
         self.user_not_found_screen.resizable(False,False)
 
-        self.user_not_found_screen.iconbitmap(self.login_icon_path)
+        #self.user_not_found_screen.iconbitmap(self.login_icon_path)
 
         Label(self.user_not_found_screen, text="User Not Found").pack()
         Button(self.user_not_found_screen, text="OK", command=self.delete_user_not_found_screen).pack()

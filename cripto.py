@@ -42,7 +42,7 @@ class Criptograpy:
         """
         Derives a given text to obtain a key to use un symetric cypher
         """
-        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(), length=64, salt=self.salt_pbkdf2hmac, iterations=100000)
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=16, salt=self.salt_pbkdf2hmac, iterations=100000)
 
         return kdf.derive(bytes(text, "latin-1"))
 
