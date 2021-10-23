@@ -94,7 +94,7 @@ class Agenda:
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
         # Filling the rows
-        self.get_contacts()
+        #self.get_contacts()
         self.encrypt_on_close()
 
     def validation(self, *params):
@@ -226,7 +226,7 @@ class Agenda:
         """
         Run a specified query (parameter)
         """
-        with sqlite3.connect(self.db_name,timeout=15) as conn:
+        with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
             result = cursor.execute(query, parameters)
             conn.commit()
@@ -244,9 +244,9 @@ class Agenda:
         
         query = constants.QUERY_GET
         db_rows = self.run_query(query)
+        j = self.run_query(query)
         # Filling data
         for row in db_rows:
-            print("actualizando", row)
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
             
 
@@ -254,18 +254,9 @@ class Agenda:
         pass
         
     def encrypt_on_close(self):
-        return
+	
         db_rows = self.run_query(constants.QUERY_GET)
-        '''lista_aux = []
-        lista_cifrada = []
-        for i in db_rows:
-            for j in i:
-                lista_aux.append(j)
-                lista_cifrada.append(
-                	cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, j) )
-                	)
-            parameters = (lista_cifrada[1], lista_aux[1], lista_cifrada[2], lista_cifrada[3], lista_cifrada[4], lista_aux[2], lista_aux[3], lista_aux[4])
-            #print(parameters)'''
+        
         param_list = []
         for row in db_rows:
             plain_data = []
@@ -274,23 +265,29 @@ class Agenda:
                 plain_data.append(element)
                 cipher_data.append(
                         cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, element) )
-                )
+                               )
             parameters = (
-                          cipher_data[1], plain_data[1],
-                          cipher_data[2], cipher_data[3],
-                          cipher_data[4], plain_data[2],
-                          plain_data[3], plain_data[4]
+                          base64.b64encode(cipher_data[1]).decode("ascii"), 
+                          base64.b64encode(cipher_data[2]).decode("ascii"), 
+                          base64.b64encode(cipher_data[3]).decode("ascii"), 
+                          base64.b64encode(cipher_data[4]).decode("ascii"), 
+                          plain_data[1],
+                          plain_data[2],
+                          plain_data[3], 
+                          plain_data[4]
                         )
+
             param_list.append(parameters)
-            print(parameters)
-            #hasta aquí todo bien
-            #self.run_query(constants.QUERY_UPDATE, parameters)
-        print("PAPARAJOTE")
-        i = 0
-        for foo in db_rows:
-                print(i)
-                self.run_query(constants.QUERY_UPDATE, param_list[i])
-                i += 1
+            self.run_query(
+"UPDATE agenda SET\
+ name = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==',\
+ telephone = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==', \
+ email = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==', \
+ description =  'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew=='\
+ WHERE name = 'pepe' \
+ AND telephone = 'pepe' \
+ AND email = 'pepe' \
+ AND description = 'pepe'")
         self.get_contacts()
 
 
