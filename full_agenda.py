@@ -95,6 +95,8 @@ class Agenda:
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
         # Filling the rows
         self.decrypt_on_open()
+        
+        self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
         #self.encrypt_on_close()
 
     def validation(self, *params):
@@ -316,7 +318,9 @@ class Agenda:
             param_list.append(parameters)
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
-        self.get_contacts()
+        
+        self.wind.destroy()
+        #self.get_contacts()
 
 
 #[------MainLogIn------]
