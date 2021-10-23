@@ -62,17 +62,18 @@ class Criptograpy:
 
         encryptor = self.cipher.encryptor()
         text = str(text)
-        return encryptor.update(bytes(text,"latin-1")) + encryptor.finalize()
+        return encryptor.update( bytes( text, "latin-1" ) ) + encryptor.finalize()
 
-    def symetric_decrypter(self, text):
+    def symetric_decrypter(self, key, text):
         """
         Use the genrated symetric key to decrypt a given text
         """
+        self.cipher = Cipher(algorithms.AES(key), modes.CTR(self.iv))
         decryptor = self.cipher.decryptor()
 
         return decryptor.update(text) + decryptor.finalize()
 
-    def hmac(self,key,text):
+    def hmac(self, key, text):
         """
         Authenticate a given text with an auth_tag (h.finalize())
         """

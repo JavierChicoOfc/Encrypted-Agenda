@@ -94,8 +94,8 @@ class Agenda:
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
         # Filling the rows
-        #self.get_contacts()
-        self.encrypt_on_close()
+        self.decrypt_on_open()
+        #self.encrypt_on_close()
 
     def validation(self, *params):
         """
@@ -251,21 +251,57 @@ class Agenda:
             
 
     def decrypt_on_open(self):
-        pass
-        
-    def encrypt_on_close(self):
-	
         db_rows = self.run_query(constants.QUERY_GET)
         
         param_list = []
         for row in db_rows:
             plain_data = []
             cipher_data = []
-            for element in row:
+            for element in row:            
+                cipher_data.append(element)
+                if type(element) != int:
+                        plain_data.append( 
+                              cripto.symetric_decrypter( 
+                                                       self.session_key, 
+                                                       base64.b64decode(element) 
+                                                            ).decode('latin-1')
+                                         )
+                else:
+                        plain_data.append(element)
+
+            parameters = (
+                          plain_data[1],
+                          plain_data[2],
+                          plain_data[3], 
+                          plain_data[4],
+                          cipher_data[1], 
+                          cipher_data[2], 
+                          cipher_data[3], 
+                          cipher_data[4]
+                        )
+            param_list.append(parameters)
+            
+        for i in range(len(param_list)):
+            self.run_query(constants.QUERY_UPDATE, param_list[i])
+            
+        self.get_contacts()
+        
+    def encrypt_on_close(self):
+        records = self.tree.get_children()
+        for element in records:
+            self.tree.delete(element)
+            
+        db_rows = self.run_query(constants.QUERY_GET)
+        
+        param_list = []
+        for row in db_rows:
+            plain_data = []
+            cipher_data = []
+            for element in row:            
                 plain_data.append(element)
-                cipher_data.append(
-                        cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, element) )
-                               )
+                cipher_data.append( cripto.symetric_cipher(self.session_key, element) )
+                #cipher_data.append( cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, element) ) )
+
             parameters = (
                           base64.b64encode(cipher_data[1]).decode("ascii"), 
                           base64.b64encode(cipher_data[2]).decode("ascii"), 
@@ -278,16 +314,8 @@ class Agenda:
                         )
 
             param_list.append(parameters)
-            self.run_query(
-"UPDATE agenda SET\
- name = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==',\
- telephone = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==', \
- email = 'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew==', \
- description =  'b7V7dgDmMuO2er++mXCjiNiEEE40qEn+N9OuK1at7f4ctgC1tsgYBxMI3OGvMSdmMeifVWPD6QrcXqvveMk7Ew=='\
- WHERE name = 'pepe' \
- AND telephone = 'pepe' \
- AND email = 'pepe' \
- AND description = 'pepe'")
+        for i in range(len(param_list)):
+            self.run_query(constants.QUERY_UPDATE, param_list[i])
         self.get_contacts()
 
 
