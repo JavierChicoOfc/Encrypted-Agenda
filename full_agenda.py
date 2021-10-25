@@ -97,7 +97,6 @@ class Agenda:
         self.decrypt_on_open()
         
         self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
-        #self.encrypt_on_close()
 
     def validation(self, *params):
         """
@@ -440,6 +439,7 @@ class MainLogIn:
         Auxiliar method of login that verifies the log-in checking the data files
         """
         session_key = cripto.pbkdf2hmac(self.password_verify.get())
+
         username1 = base64.b64encode(cripto.hash_scrypt(self.username_verify.get())).decode("ascii")
         password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get())).decode("ascii")
 
