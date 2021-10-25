@@ -6,7 +6,7 @@ import os
 
 from cryptography.hazmat.primitives.ciphers.modes import ECB
 
-from cripto import Criptograpy
+from crypto import Cryptograpy
 
 import sqlite3
 
@@ -28,7 +28,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self, agenda_screen, session_key, user_salt):
+    def __init__(self, agenda_screen, session_key, user_salt,user_id):
         """
         Constructor method for Agenda Class
         """
@@ -38,9 +38,15 @@ class Agenda:
         self.session_key = session_key
         self.user_salt = user_salt
 
+        self.user_id = int(user_id)
+
+        self.iv = None
+
+        self.key_hmac = None
+
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
-        #self.wind.iconbitmap(self.agenda_icon_path)
+        self.wind.iconbitmap(self.agenda_icon_path)
 
         # Creating a Frame Containter
         
@@ -95,6 +101,9 @@ class Agenda:
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
         # Filling the rows
+        
+
+
         self.decrypt_on_open()
         
         self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
@@ -256,8 +265,18 @@ class Agenda:
         """
         Decrypts database contents on start of application
         """
+
+        cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
+
+        for row in cryptostore:
+            #if row[0] == self.user_id:
+            self.iv = row[1]
+            self.key_hmac = row[2]
+
         db_rows = self.run_query(constants.QUERY_GET)
         
+        print("iv",self.iv)
+        print("typeiv",type(self.iv))
         param_list = []
         for row in db_rows:
             plain_data = []
@@ -266,11 +285,7 @@ class Agenda:
                 cipher_data.append(element)
                 if type(element) != int:
                         plain_data.append( 
-                              cripto.symetric_decrypter( 
-                                                       self.session_key, 
-                                                       base64.b64decode(element) 
-                                                            ).decode('latin-1')
-                                         )
+                              crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
                 else:
                         plain_data.append(element)
 
@@ -288,24 +303,41 @@ class Agenda:
             
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
-            
+
         self.get_contacts()
         
     def encrypt_on_close(self):
+
+        iv = os.urandom(16)
+
+        key_hmac = os.urandom(16)
+
+        parameters2 = (iv,key_hmac,self.user_id)
+
+        self.iv = iv
+        self.key_hmac = key_hmac
+
+        # cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
+
+        db_rows = self.run_query(constants.QUERY_GET)
+        
         records = self.tree.get_children()
         for element in records:
             self.tree.delete(element)
-            
+
         db_rows = self.run_query(constants.QUERY_GET)
         
+        #print("IV",self.iv)
         param_list = []
         for row in db_rows:
             plain_data = []
             cipher_data = []
             for element in row:            
                 plain_data.append(element)
-                cipher_data.append( cripto.symetric_cipher(self.session_key, element) )
-                #cipher_data.append( cripto.hmac( self.session_key, cripto.symetric_cipher(self.session_key, element) ) )
+                print("IV AGENDA",self.iv)
+                print("IV type AGENDA",type(self.iv))
+                cipher_data.append(crypto.symetric_cipher(self.session_key, element, self.iv) )
+                #cipher_data.append( crypto.hmac( self.session_key, crypto.symetric_cipher(self.session_key, element) ) )
 
             parameters = (
                           base64.b64encode(cipher_data[1]).decode("ascii"), 
@@ -317,11 +349,21 @@ class Agenda:
                           plain_data[3], 
                           plain_data[4]
                         )
-
             param_list.append(parameters)
+
+
+
+        #self.run_query(constants.QUERY_INSERT_CRYPTO,parameters2)
+        
+        #parameters2 = (iv,key_hmac,)
+
+        self.run_query(constants.QUERY_UPDATE_CRYPTO,parameters2)
+
+
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
         
+
         self.wind.destroy()
         #self.get_contacts()
 
@@ -363,7 +405,7 @@ class MainLogIn:
         self.register_screen.geometry("300x250")
         self.register_screen.resizable(False,False)
 
-        #self.register_screen.iconbitmap(self.login_icon_path)
+        self.register_screen.iconbitmap(self.login_icon_path)
         
         self.username = StringVar()
         self.password = StringVar()
@@ -391,7 +433,7 @@ class MainLogIn:
         self.login_screen.geometry("300x250")
         self.login_screen.resizable(False,False)
 
-        #self.login_screen.iconbitmap(self.login_icon_path)
+        self.login_screen.iconbitmap(self.login_icon_path)
 
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
@@ -419,8 +461,8 @@ class MainLogIn:
 
         else:
             self.salt = base64.b64encode( os.urandom(16) ).decode("ascii")
-            username_info = base64.b64encode( cripto.hash_scrypt(self.username.get(), self.salt) ).decode("ascii")
-            password_info = base64.b64encode( cripto.hash_scrypt(self.password.get(), self.salt) ).decode("ascii")
+            username_info = base64.b64encode( crypto.hash_scrypt(self.username.get(), self.salt) ).decode("ascii")
+            password_info = base64.b64encode( crypto.hash_scrypt(self.password.get(), self.salt) ).decode("ascii")
 
             with open("users.json", "r", encoding="utf-8") as users_file:
                 users_data = json.load(users_file)
@@ -448,7 +490,7 @@ class MainLogIn:
         """
         Auxiliar method of login that verifies the log-in checking the data files
         """
-        session_key = cripto.pbkdf2hmac(self.password_verify.get())
+        session_key = crypto.pbkdf2hmac(self.password_verify.get())
 
         #print(type(self.salt))
         
@@ -462,7 +504,7 @@ class MainLogIn:
             return
 
         self.salt = verify[userid1]["salt"]
-        password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get(), self.salt)).decode("ascii")
+        password1 = base64.b64encode(crypto.hash_scrypt(self.password_verify.get(), self.salt)).decode("ascii")
 
         self.userid_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
@@ -473,7 +515,7 @@ class MainLogIn:
         for user in verify.keys():
             if userid1 == user:
                 if verify[user]["password"] == password1:
-                    self.login_sucess(session_key)
+                    self.login_sucess(session_key,userid1)
                     password_not_recognised = False
                 else:
                     password_not_recognised = True
@@ -482,7 +524,7 @@ class MainLogIn:
         if password_not_recognised:
             self.password_not_recognised()
 
-    def login_sucess(self, session_key):
+    def login_sucess(self, session_key,userid):
         """
         Open the login success screen
         """
@@ -492,11 +534,12 @@ class MainLogIn:
         self.login_success_screen.geometry("150x100")
         self.login_success_screen.resizable(False,False)
         
-        #self.login_success_screen.iconbitmap(self.login_icon_path)
+        self.login_success_screen.iconbitmap(self.login_icon_path)
         
         Label(self.login_success_screen, text="Login Success").pack()
         Button(self.login_success_screen, text="OK", command=self.delete_login_success).pack()
         """
+
         # Delete Login Screen & MainLogin Screen
         self.login_screen.destroy()
         self.main_login.destroy()
@@ -504,7 +547,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key, self.salt)
+        Agenda(agenda_screen, session_key, self.salt,userid)
         agenda_screen.mainloop()
        
     
@@ -561,7 +604,7 @@ if __name__== '__main__':
     """
     Initialize the Register & Log In screen
     """
-    cripto = Criptograpy()
+    crypto = Cryptograpy()
     main_login = Tk()
     application = MainLogIn(main_login)
 
