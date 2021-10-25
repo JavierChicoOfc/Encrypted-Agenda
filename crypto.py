@@ -33,13 +33,13 @@ class Cryptograpy:
 
         return kdf.derive(bytes(text,"latin-1"))
 
-    def pbkdf2hmac(self, text):
+    def pbkdf2hmac(self, key_to_derive):
         """
-        Derives a given text to obtain a key to use un symetric cypher
+        Takes a key returns a derivation to use it in symmetric cipher
         """
         kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=16, salt=self.salt_pbkdf2hmac, iterations=100000)
 
-        return kdf.derive(bytes(text, "latin-1"))
+        return kdf.derive(bytes(key_to_derive, "latin-1"))
 
     def verify_pbkdf2hmac(self, text, hash):
         """
@@ -56,11 +56,7 @@ class Cryptograpy:
         """
         Use the generated symetric key to cipher a given text (Used to cipher the data in the database)
         """
-        print("IV CRIPTO",iv)
-        print("IV type CRIPTO",type(iv))
-
-        self.cipher = Cipher(algorithms.AES(key),
-        modes.CTR(iv))
+        self.cipher = Cipher(algorithms.AES(key), modes.CTR(iv))
 
         encryptor = self.cipher.encryptor()
         text = str(text)

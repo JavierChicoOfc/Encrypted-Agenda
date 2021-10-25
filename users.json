@@ -38,5 +38,10 @@
         "user": "Sh9ypxBhkDLYbu8Kfo+mKoqK04eIWrJPnMJHKv2mo+4=",
         "password": "Sh9ypxBhkDLYbu8Kfo+mKoqK04eIWrJPnMJHKv2mo+4=",
         "salt": "bKV2k1OM7YkDhuG2WSco4A=="
+    },
+    "8": {
+        "user": "u3x/bv1sD6/W0EIdlRcrfpXPak8b3scP6G/ogbR5u/I=",
+        "password": "u3x/bv1sD6/W0EIdlRcrfpXPak8b3scP6G/ogbR5u/I=",
+        "salt": "o846lAztBOS3DT91u7cHeA=="
     }
 }

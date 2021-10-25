@@ -266,6 +266,7 @@ class Agenda:
         Decrypts database contents on start of application
         """
 
+        # get the stored initialization vector and key for HMAC
         cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
 
         for row in cryptostore:
@@ -273,69 +274,73 @@ class Agenda:
             self.iv = row[1]
             self.key_hmac = row[2]
 
+        # store encrypted data and decrypted data separatedly (enc_data and dec_data)
+        #in order to perform an update query on the database
         db_rows = self.run_query(constants.QUERY_GET)
-        
-        print("iv",self.iv)
-        print("typeiv",type(self.iv))
         param_list = []
         for row in db_rows:
-            plain_data = []
-            cipher_data = []
+            dec_data = []
+            enc_data = []
             for element in row:            
-                cipher_data.append(element)
+                enc_data.append(element)
+                # row ID is not encrypted, so it makes no sense to try to decrypt it
                 if type(element) != int:
-                        plain_data.append( 
+                        dec_data.append( 
                               crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
                 else:
-                        plain_data.append(element)
+                        dec_data.append(element)
 
             parameters = (
-                          plain_data[1],
-                          plain_data[2],
-                          plain_data[3], 
-                          plain_data[4],
-                          cipher_data[1], 
-                          cipher_data[2], 
-                          cipher_data[3], 
-                          cipher_data[4]
+                          dec_data[1],
+                          dec_data[2],
+                          dec_data[3], 
+                          dec_data[4],
+                          enc_data[1], 
+                          enc_data[2], 
+                          enc_data[3], 
+                          enc_data[4]
                         )
             param_list.append(parameters)
-            
+        
+        # it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        # pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
 
+        # once contents are updated, load the information in the app
         self.get_contacts()
         
     def encrypt_on_close(self):
-
-        iv = os.urandom(16)
-
-        key_hmac = os.urandom(16)
-
-        parameters2 = (iv,key_hmac,self.user_id)
-
+        """
+        Encrypts database right before closing the app
+        """
+        # generate two new values for encryption and authentication and update
+        # the old ones in 'cryptostore' table, so next time decrypt_on_open
+        # has the new values available
+        iv         = os.urandom(16)
+        key_hmac   = os.urandom(16)
+        parameters = (iv, key_hmac, self.iv, self.key_hmac)
+        self.run_query(constants.QUERY_UPDATE_CRYPTO, parameters)
+        # also update these values for incoming encryption
         self.iv = iv
         self.key_hmac = key_hmac
 
-        # cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
-
-        db_rows = self.run_query(constants.QUERY_GET)
         
         records = self.tree.get_children()
         for element in records:
             self.tree.delete(element)
 
+
+        # iterate throught each field of each contact and store separately ciphered data
+        # and plain text data in order to perform an update query on the database rows
         db_rows = self.run_query(constants.QUERY_GET)
         
-        #print("IV",self.iv)
         param_list = []
         for row in db_rows:
             plain_data = []
             cipher_data = []
             for element in row:            
                 plain_data.append(element)
-                print("IV AGENDA",self.iv)
-                print("IV type AGENDA",type(self.iv))
                 cipher_data.append(crypto.symetric_cipher(self.session_key, element, self.iv) )
                 #cipher_data.append( crypto.hmac( self.session_key, crypto.symetric_cipher(self.session_key, element) ) )
 
@@ -351,21 +356,13 @@ class Agenda:
                         )
             param_list.append(parameters)
 
-
-
-        #self.run_query(constants.QUERY_INSERT_CRYPTO,parameters2)
-        
-        #parameters2 = (iv,key_hmac,)
-
-        self.run_query(constants.QUERY_UPDATE_CRYPTO,parameters2)
-
-
+        # it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        # pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
         
-
+        # terminate app
         self.wind.destroy()
-        #self.get_contacts()
 
 
 #[------MainLogIn------]
