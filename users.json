@@ -1,8 +1,17 @@
 {
-    "foo": "bar",
-    "JPFO2xlb37ThAXGEvUWFAqYTF2dgCU4ekX7CM902Tmo=": "JPFO2xlb37ThAXGEvUWFAqYTF2dgCU4ekX7CM902Tmo=",
-    "hSsOibrJ5NSs8LVfvxO1xB6avoACTBjMnJLW+YkMfFU=": "hSsOibrJ5NSs8LVfvxO1xB6avoACTBjMnJLW+YkMfFU=",
-    "gbqEF4MdhKwXMOYk9t6tBWyEEtDZzUA8O9yZL9w0jho=": "gbqEF4MdhKwXMOYk9t6tBWyEEtDZzUA8O9yZL9w0jho=",
-    "wZ99k0BRmeYr9EyC+Q0IM1o7tYGNGPxbCXBECOKz3No=": "wZ99k0BRmeYr9EyC+Q0IM1o7tYGNGPxbCXBECOKz3No=",
-    "g10twMS56gdt7EnhaqDbTjveizkpnuldkRbLX+MEaSs=": "g10twMS56gdt7EnhaqDbTjveizkpnuldkRbLX+MEaSs="
+    "0": {
+        "user": "jose"
+    },
+    "1": {
+        "id": "1",
+        "user": "U0tSsxXrTRlKgioGM58RCHmXeMg4NCQUUoQAVDb4/Ao=",
+        "password": "U0tSsxXrTRlKgioGM58RCHmXeMg4NCQUUoQAVDb4/Ao=",
+        "salt": "UygFDFYiy/K7eXPQAiViLg=="
+    },
+    "2": {
+        "id": "2",
+        "user": "iXEGJi/G+R1sZXdShV7KHCQvzajxzaqayDnyp6rCyd8=",
+        "password": "iXEGJi/G+R1sZXdShV7KHCQvzajxzaqayDnyp6rCyd8=",
+        "salt": "VF3V146q06wqsSppo3NC1A=="
+    }
 }

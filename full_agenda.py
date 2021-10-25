@@ -28,7 +28,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self, agenda_screen, session_key):
+    def __init__(self, agenda_screen, session_key, user_salt):
         """
         Constructor method for Agenda Class
         """
@@ -36,6 +36,7 @@ class Agenda:
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
         self.session_key = session_key
+        self.user_salt = user_salt
 
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
@@ -252,6 +253,9 @@ class Agenda:
             
 
     def decrypt_on_open(self):
+        """
+        Decrypts database contents on start of application
+        """
         db_rows = self.run_query(constants.QUERY_GET)
         
         param_list = []
@@ -339,7 +343,9 @@ class MainLogIn:
         self.main_login.resizable(False,False)
 
         self.login_icon_path = os.getcwd() + "\icons\login_icon.ico"
-        #self.main_login.iconbitmap(self.login_icon_path)
+        self.main_login.iconbitmap(self.login_icon_path)
+
+        self.salt = None
         
         
         Label(text="Select Your Choice", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
@@ -390,12 +396,12 @@ class MainLogIn:
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
     
-        self.username_verify = StringVar()
+        self.userid_verify = StringVar()
         self.password_verify = StringVar()
     
-        Label(self.login_screen, text="Username * ").pack()
-        self.username_login_entry = Entry(self.login_screen, textvariable=self.username_verify)
-        self.username_login_entry.pack()
+        Label(self.login_screen, text="ID * ").pack()
+        self.userid_login_entry = Entry(self.login_screen, textvariable=self.userid_verify)
+        self.userid_login_entry.pack()
         Label(self.login_screen, text="").pack()
         Label(self.login_screen, text="Password * ").pack()
         self.password_login_entry = Entry(self.login_screen, textvariable=self.password_verify, show= '*')
@@ -412,20 +418,23 @@ class MainLogIn:
             Label(self.register_screen, text="User or password is invalid", fg="red", font=("Open Sans", 14)).pack()
 
         else:
-            username_info = base64.b64encode(cripto.hash_scrypt(self.username.get())).decode("ascii")
-            password_info = base64.b64encode(cripto.hash_scrypt(self.password.get())).decode("ascii")
+            self.salt = base64.b64encode( os.urandom(16) ).decode("ascii")
+            username_info = base64.b64encode( cripto.hash_scrypt(self.username.get(), self.salt) ).decode("ascii")
+            password_info = base64.b64encode( cripto.hash_scrypt(self.password.get(), self.salt) ).decode("ascii")
 
             with open("users.json", "r", encoding="utf-8") as users_file:
                 users_data = json.load(users_file)
 
-            # Fix duplicated users
+            contador = 0
+            while str(contador) in users_data.keys():
+                contador += 1
 
-            if username_info in users_data.keys():
-                Label(self.register_screen, text="User already taken", fg="red", font=("Open Sans", 14)).pack()
-                return
-
-            users_data[username_info] = password_info
-
+            contador = str(contador)
+            users_data[contador] = {}
+            users_data[contador]["user"] = username_info
+            users_data[contador]["password"] = password_info
+            users_data[contador]["salt"] = self.salt
+            
             with open("users.json", "w", encoding="utf-8") as users_file:
                 json.dump(users_data, users_file, indent=4)
 
@@ -433,6 +442,7 @@ class MainLogIn:
             self.password_entry.delete(0, END)
 
             Label(self.register_screen, text="Registration Success", fg="green", font=("Open Sans", 14)).pack()
+            Label(self.register_screen, text="Your ID is {}, keep it with you".format(contador), fg="green", font=("Open Sans", 14)).pack()
     
     def login_verify(self):
         """
@@ -440,35 +450,37 @@ class MainLogIn:
         """
         session_key = cripto.pbkdf2hmac(self.password_verify.get())
 
-        username1 = base64.b64encode(cripto.hash_scrypt(self.username_verify.get())).decode("ascii")
-        password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get())).decode("ascii")
-
-        self.username_login_entry.delete(0, END)
-        self.password_login_entry.delete(0, END)
+        #print(type(self.salt))
         
         file1 = open("users.json", "r")
         verify = json.load(file1)
         file1.close()
+        
+        userid1 = self.userid_verify.get()
+        if userid1 not in verify.keys():
+            self.id_not_found()
+            return
 
-        password_not_recognised = user_not_found = False
+        self.salt = verify[userid1]["salt"]
+        password1 = base64.b64encode(cripto.hash_scrypt(self.password_verify.get(), self.salt)).decode("ascii")
+
+        self.userid_login_entry.delete(0, END)
+        self.password_login_entry.delete(0, END)
+        
+
+        password_not_recognised = False
 
         for user in verify.keys():
-            if username1 == user:
-                if verify[user] == password1:
+            if userid1 == user:
+                if verify[user]["password"] == password1:
                     self.login_sucess(session_key)
-                    user_not_found = False  
                     password_not_recognised = False
                 else:
-                    password_not_recognised = True   
-            else:
-                user_not_found = True
+                    password_not_recognised = True
 
 
         if password_not_recognised:
             self.password_not_recognised()
-
-        if user_not_found and password_not_recognised == False:
-            self.user_not_found()
 
     def login_sucess(self, session_key):
         """
@@ -492,7 +504,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key)
+        Agenda(agenda_screen, session_key, self.salt)
         agenda_screen.mainloop()
        
     
@@ -505,24 +517,24 @@ class MainLogIn:
         self.password_not_recog_screen.geometry("150x100")
         self.password_not_recog_screen.resizable(False,False)
 
-        #self.password_not_recog_screen.iconbitmap(self.login_icon_path)
+        self.password_not_recog_screen.iconbitmap(self.login_icon_path)
         
         Label(self.password_not_recog_screen, text="Invalid Password ").pack()
         Button(self.password_not_recog_screen, text="OK", command=self.delete_password_not_recognised).pack()
     
-    def user_not_found(self):
+    def id_not_found(self):
         """
-        Open the user not found screen
+        Open the id not found screen
         """
-        self.user_not_found_screen = Toplevel(self.login_screen)
-        self.user_not_found_screen.title("Success")
-        self.user_not_found_screen.geometry("150x100")
-        self.user_not_found_screen.resizable(False,False)
+        self.id_not_found_screen = Toplevel(self.login_screen)
+        self.id_not_found_screen.title("Not found")
+        self.id_not_found_screen.geometry("150x100")
+        self.id_not_found_screen.resizable(False,False)
 
-        #self.user_not_found_screen.iconbitmap(self.login_icon_path)
+        self.id_not_found_screen.iconbitmap(self.login_icon_path)
 
-        Label(self.user_not_found_screen, text="User Not Found").pack()
-        Button(self.user_not_found_screen, text="OK", command=self.delete_user_not_found_screen).pack()
+        Label(self.id_not_found_screen, text="Invalid ID ", fg="red", font=("Open Sans", 14)).pack()
+        Button(self.id_not_found_screen, text="OK", command=self.delete_id_not_found_screen).pack()
     
     def delete_login_success(self):
         """
@@ -538,11 +550,11 @@ class MainLogIn:
         self.password_not_recog_screen.destroy()
     
     
-    def delete_user_not_found_screen(self):
+    def delete_id_not_found_screen(self):
         """
         Deletes the user not found screen
         """            
-        self.user_not_found_screen.destroy()
+        self.id_not_found_screen.destroy()
     
 
 if __name__== '__main__':

@@ -3,6 +3,7 @@ from cryptography.hazmat.primitives import hashes,hmac
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import os
+import base64
 
 class Criptograpy:
     """
@@ -13,7 +14,7 @@ class Criptograpy:
         Constructor class that have salts and iv for the differents algorithms
         """
 
-        self.salt_hash = b'1Q\xc7k\xf9\x9dl\x89\xc43\xba\x1fB\xaa\x1'
+        #self.salt_hash = b'1Q\xc7k\xf9\x9dl\x89\xc43\xba\x1fB\xaa\x1'
 
         self.salt_pbkdf2hmac = b'\x82\x167\x18\xf2\xc9\x80-~@\xf3\xe5\x1e.\x8d\x95'
         
@@ -22,21 +23,17 @@ class Criptograpy:
         self.key_hmac = b'&Nv\xf3kh\x82\x12l\x88\xaf\xfc\xe4\xaem}'
 
 
-    def hash_scrypt(self, text):
+    def hash_scrypt(self, text, salt):
         """
         Hash a given text (Used to hash usernames and passwords)
         """
-        kdf = Scrypt(salt=self.salt_hash, length=32, n=2**14, r=8, p=1)#, backend=ScryptBackend)
+        kdf = Scrypt(salt=bytes( salt, 'latin-1'),
+                     length=32,
+                     n=2**14,
+                     r=8,
+                     p=1)
 
         return kdf.derive(bytes(text,"latin-1"))
-
-    def verify_hash(self, text, hash):
-        """
-        Verifies if the hash is the result of hashing the text
-        """
-        kdf = Scrypt(salt=self.salt_hash, length=32, n=2**14, r=8, p=1)
-
-        return kdf.verify(bytes(text, "latin-1"), hash)
 
     def pbkdf2hmac(self, text):
         """
@@ -50,7 +47,10 @@ class Criptograpy:
         """
         Verifies if the hash is the result of hashing the text
         """
-        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(), length=64, salt=self.salt_pbkdf2hmac, iterations=100000)
+        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(),
+                         length=64,
+                         salt=self.salt_pbkdf2hmac,
+                         iterations=100000)
 
         return kdf.verify(bytes(text, "latin-1"), hash)
 
