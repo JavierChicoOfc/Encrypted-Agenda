@@ -100,12 +100,13 @@ class Agenda:
 
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
-        # Filling the rows
-        
 
+        # Decrypting database and filling the rows
 
         self.decrypt_on_open()
         
+        # Encrypt the database when the app is closed
+
         self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
 
     def validation(self, *params):
@@ -265,28 +266,51 @@ class Agenda:
         """
         Decrypts database contents on start of application
         """
-
-        # get the stored initialization vector and key for HMAC
+        # Get the stored initialization vector and key for HMAC
         cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
 
         for row in cryptostore:
-            #if row[0] == self.user_id:
+            #if row[0] == self.user_id: 
             self.iv = row[1]
             self.key_hmac = row[2]
 
-        # store encrypted data and decrypted data separatedly (enc_data and dec_data)
-        #in order to perform an update query on the database
+        # Get the stored hmac in the hmac table
+        hmacstore = self.run_query(constants.QUERY_GET_HMAC)
+
+        # Transform the matrix into an array
+        hmac_data = []
+        for row in hmacstore:
+            for element in row:
+                hmac_data.append(element)
+        
+        # Elminate id
+        hmac_data = hmac_data[1:]
+
+        # Store encrypted data and decrypted data separatedly (enc_data and dec_data)
+        # in order to perform an update on the database
+
         db_rows = self.run_query(constants.QUERY_GET)
         param_list = []
+        i = 0
         for row in db_rows:
             dec_data = []
             enc_data = []
             for element in row:            
                 enc_data.append(element)
-                # row ID is not encrypted, so it makes no sense to try to decrypt it
+                # Row ID is not encrypted, so it makes no sense to try to decrypt it
                 if type(element) != int:
-                        dec_data.append( 
-                              crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
+
+                        # Verifies the HMAC on every data
+                        try:
+                            crypto.verify_hmac(self.key_hmac,bytes(element,"latin-1"),hmac_data[i])
+                        
+                        except:
+                            # If it isnt verified, it raises an advice
+                            self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
+
+                        # Decrypted data
+                        dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
+                        i+=1
                 else:
                         dec_data.append(element)
 
@@ -302,48 +326,50 @@ class Agenda:
                         )
             param_list.append(parameters)
         
-        # it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        # It is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
         # pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
 
-        # once contents are updated, load the information in the app
+        # Once contents are updated, load the information in the app
         self.get_contacts()
         
     def encrypt_on_close(self):
         """
         Encrypts database right before closing the app
         """
-        # generate two new values for encryption and authentication and update
+        # Generate two new values for encryption and authentication and update
         # the old ones in 'cryptostore' table, so next time decrypt_on_open
         # has the new values available
-        iv         = os.urandom(16)
-        key_hmac   = os.urandom(16)
-        parameters = (iv, key_hmac, self.iv, self.key_hmac)
-        self.run_query(constants.QUERY_UPDATE_CRYPTO, parameters)
-        # also update these values for incoming encryption
-        self.iv = iv
-        self.key_hmac = key_hmac
+        self.iv         = os.urandom(16)
+        self.key_hmac   = os.urandom(16)
+        parameters = (self.iv,self.key_hmac)
 
+        # Updates the cryptostore table
+        self.run_query(constants.QUERY_DELETE_CRYPTO)
+        self.run_query(constants.QUERY_INSERT_CRYPTO,parameters)
         
         records = self.tree.get_children()
         for element in records:
             self.tree.delete(element)
 
-
-        # iterate throught each field of each contact and store separately ciphered data
+        # Iterate throught each field of each contact and store separately ciphered data
         # and plain text data in order to perform an update query on the database rows
         db_rows = self.run_query(constants.QUERY_GET)
         
         param_list = []
+        param_hmac = []
         for row in db_rows:
             plain_data = []
             cipher_data = []
+            hmac_data = []
             for element in row:            
                 plain_data.append(element)
-                cipher_data.append(crypto.symetric_cipher(self.session_key, element, self.iv) )
-                #cipher_data.append( crypto.hmac( self.session_key, crypto.symetric_cipher(self.session_key, element) ) )
+                encrypterd_data = crypto.symetric_cipher(self.session_key, element, self.iv)
+                
+                cipher_data.append(encrypterd_data)
 
+            # Save parameters to load in database
             parameters = (
                           base64.b64encode(cipher_data[1]).decode("ascii"), 
                           base64.b64encode(cipher_data[2]).decode("ascii"), 
@@ -354,14 +380,28 @@ class Agenda:
                           plain_data[3], 
                           plain_data[4]
                         )
-            param_list.append(parameters)
+            
+            # HMAC the parameters
+            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[0],"latin-1")))
+            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[1],"latin-1")))
+            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[2],"latin-1")))
+            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[3],"latin-1")))
 
-        # it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+            param_list.append(parameters)
+            param_hmac.append(hmac_data)
+            
+
+        # It is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
         # pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
+
+        self.run_query(constants.QUERY_DELETE_HMAC)
+
+        for i in range(len(param_hmac)):
+            self.run_query(constants.QUERY_INSERT_HMAC, param_hmac[i])
         
-        # terminate app
+        # Close app
         self.wind.destroy()
 
 
@@ -488,8 +528,6 @@ class MainLogIn:
         Auxiliar method of login that verifies the log-in checking the data files
         """
         session_key = crypto.pbkdf2hmac(self.password_verify.get())
-
-        #print(type(self.salt))
         
         file1 = open("users.json", "r")
         verify = json.load(file1)
@@ -575,7 +613,7 @@ class MainLogIn:
 
         Label(self.id_not_found_screen, text="Invalid ID ", fg="red", font=("Open Sans", 14)).pack()
         Button(self.id_not_found_screen, text="OK", command=self.delete_id_not_found_screen).pack()
-    
+
     def delete_login_success(self):
         """
         Deletes the login screen
