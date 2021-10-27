@@ -10,7 +10,7 @@ class Cryptograpy:
     """
     def __init__(self):
         """
-        Constructor class that have salts and iv for the differents algorithms
+        Constructor for the class with the salt for pbkdf2hmac hardcoded
         """
         self.salt_pbkdf2hmac = b'\x82\x167\x18\xf2\xc9\x80-~@\xf3\xe5\x1e.\x8d\x95'
 
@@ -36,12 +36,9 @@ class Cryptograpy:
 
     def verify_pbkdf2hmac(self, text, hash):
         """
-        Verifies if the hash is the result of hashing the text
+        Verifies if the hash is the result of hashing the text, left for future uses
         """
-        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(),
-                         length=64,
-                         salt=self.salt_pbkdf2hmac,
-                         iterations=100000)
+        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(), length=16, salt=self.salt_pbkdf2hmac, iterations=100000)
 
         return kdf.verify(bytes(text, "latin-1"), hash)
 
@@ -49,7 +46,8 @@ class Cryptograpy:
         """
         Use the generated symetric key to cipher a given text (Used to cipher the data in the database)
         """
-        # We select CTR as operational mode to cipher blocks due its security and beacause it is tolerant to losses in blocks
+        # We select CTR as operational mode to cipher blocks due its security and because it is tolerant to losses in blocks
+        # (i.e., an error in one block will not affect the rest)
         self.cipher = Cipher(algorithms.AES(key), modes.CTR(iv))
 
         encryptor = self.cipher.encryptor()

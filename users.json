@@ -48,5 +48,10 @@
         "user": "HxG7mi1HbQtUO705ywBL6T8q5orIb0vpgs1apbTPwo0=",
         "password": "HxG7mi1HbQtUO705ywBL6T8q5orIb0vpgs1apbTPwo0=",
         "salt": "Hq7sUDQqTdzgLjniT8k/yQ=="
+    },
+    "10": {
+        "user": "KX33KNvOnatk6oS5bxsQDsfUwYV8OUjGP7Cw0M3jHbg=",
+        "password": "KaUstQwL/DkuPfrfXAw8oaEp9DgItzdNX50zcHy+wvU=",
+        "salt": "2BUGa17bzzup4/enX6+TfQ=="
     }
 }

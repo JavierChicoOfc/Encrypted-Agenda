@@ -277,21 +277,23 @@ class Agenda:
         # Get the stored hmac in the hmac table
         hmacstore = self.run_query(constants.QUERY_GET_HMAC)
 
-        # Transform the matrix into an array
+        # Table HMACs to authenticate data in the next loop
         hmac_data = []
         for row in hmacstore:
             for element in row:
-                hmac_data.append(element)
-        
-        # Elminate id
-        hmac_data = hmac_data[1:]
+                if element is not None:
+                    #print(element)
+                    hmac_data.append(element) 
 
+
+        # Get the stored encrypted contacts
+        db_rows = self.run_query(constants.QUERY_GET)
+        # Init a list to store UPDATE parameters (both encrypted and decrypted data)
+        param_list = []
+        # Iterator to traverse HMAC array
+        i = 0
         # Store encrypted data and decrypted data separatedly (enc_data and dec_data)
         # in order to perform an update on the database
-
-        db_rows = self.run_query(constants.QUERY_GET)
-        param_list = []
-        i = 0
         for row in db_rows:
             dec_data = []
             enc_data = []
@@ -299,35 +301,36 @@ class Agenda:
                 enc_data.append(element)
                 # Row ID is not encrypted, so it makes no sense to try to decrypt it
                 if type(element) != int:
-
-                        # Verifies the HMAC on every data
-                        try:
-                            crypto.verify_hmac(self.key_hmac,bytes(element,"latin-1"),hmac_data[i])
-                        
-                        except:
-                            # If it isnt verified, it raises an advice
-                            self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
-
+                    # Verifies the corresponding HMAC on every data
+                    try:
+                        crypto.verify_hmac( self.key_hmac, bytes(element,"latin-1"), hmac_data[i] )
                         # Decrypted data
-                        dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
-                        i+=1
-                else:
+                        dec_data.append( crypto.symetric_decrypter( self.session_key, base64.b64decode(element), self.iv ).decode('latin-1') )
+                    
+                    except:
+                        # If it isnt verified, it raises an advice
+                        self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
+                        # Non Decrypted data
                         dec_data.append(element)
 
-            parameters = (
-                          dec_data[1],
-                          dec_data[2],
-                          dec_data[3], 
-                          dec_data[4],
-                          enc_data[1], 
-                          enc_data[2], 
-                          enc_data[3], 
-                          enc_data[4]
-                        )
-            param_list.append(parameters)
-        
-        # It is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
-        # pointing to the database, so the base is locked while db_rows is not totally read
+                    # Decrypted data
+                    #dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
+                    # update HMAC list iterator
+                    i+=1
+                else:
+                    # directly append row ID to decrypted list
+                    dec_data.append(element)
+
+            param_list.append((
+                                dec_data[1], dec_data[2],
+                                dec_data[3], dec_data[4],
+                                enc_data[1], enc_data[2], 
+                                enc_data[3], enc_data[4]
+                                ))
+                                
+        # UPDATE database by substituting encrypted data with decrypted data
+        # Note: it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        #       pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
 
@@ -343,38 +346,35 @@ class Agenda:
         # has the new values available
         self.iv         = os.urandom(16)
         self.key_hmac   = os.urandom(16)
-        parameters = (self.iv,self.key_hmac)
 
         # Updates the cryptostore table
+        parameters = (self.iv, self.key_hmac)
         self.run_query(constants.QUERY_DELETE_CRYPTO)
-        self.run_query(constants.QUERY_INSERT_CRYPTO,parameters)
-        
-        records = self.tree.get_children()
-        for element in records:
-            self.tree.delete(element)
+        self.run_query(constants.QUERY_INSERT_CRYPTO, parameters)
 
-        # Iterate throught each field of each contact and store separately ciphered data
-        # and plain text data in order to perform an update query on the database rows
-        db_rows = self.run_query(constants.QUERY_GET)
-        
+        # Iterate throught each field of each contact and store separately ciphered data,
+        # plain text and hmac of ciphered data in order to perform an update query on the database rows
         param_list = []
         param_hmac = []
+        db_rows = self.run_query(constants.QUERY_GET)
         for row in db_rows:
             plain_data = []
             cipher_data = []
             hmac_data = []
             for element in row:            
                 plain_data.append(element)
-                encrypterd_data = crypto.symetric_cipher(self.session_key, element, self.iv)
+                #encrypterd_data = crypto.symetric_cipher(self.session_key, element, self.iv)
                 
-                cipher_data.append(encrypterd_data)
+                #cipher_data.append(encrypterd_data)
+                
+                cipher_data.append( crypto.symetric_cipher(self.session_key, element, self.iv) )
 
-            # Save parameters to load in database
+            # Save parameters to load in agenda database
             parameters = (
-                          base64.b64encode(cipher_data[1]).decode("ascii"), 
-                          base64.b64encode(cipher_data[2]).decode("ascii"), 
-                          base64.b64encode(cipher_data[3]).decode("ascii"), 
-                          base64.b64encode(cipher_data[4]).decode("ascii"), 
+                          base64.b64encode( cipher_data[1] ).decode("ascii"), 
+                          base64.b64encode( cipher_data[2] ).decode("ascii"), 
+                          base64.b64encode( cipher_data[3] ).decode("ascii"), 
+                          base64.b64encode( cipher_data[4] ).decode("ascii"), 
                           plain_data[1],
                           plain_data[2],
                           plain_data[3], 
@@ -382,22 +382,23 @@ class Agenda:
                         )
             
             # HMAC the parameters
-            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[0],"latin-1")))
-            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[1],"latin-1")))
-            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[2],"latin-1")))
-            hmac_data.append(crypto.hmac(self.key_hmac,bytes(parameters[3],"latin-1")))
+            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[0],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[1],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[2],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[3],"latin-1") ) )
 
             param_list.append(parameters)
             param_hmac.append(hmac_data)
             
 
-        # It is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
-        # pointing to the database, so the base is locked while db_rows is not totally read
+        # UPDATE database by substituting encrypted data with decrypted data
+        # Note: it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        #       pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
             self.run_query(constants.QUERY_UPDATE, param_list[i])
 
+        # UPDATE HMAC table with new Message Authentication Codes
         self.run_query(constants.QUERY_DELETE_HMAC)
-
         for i in range(len(param_hmac)):
             self.run_query(constants.QUERY_INSERT_HMAC, param_hmac[i])
         
@@ -527,54 +528,33 @@ class MainLogIn:
         """
         Auxiliar method of login that verifies the log-in checking the data files
         """
-        session_key = crypto.pbkdf2hmac(self.password_verify.get())
         
-        file1 = open("users.json", "r")
-        verify = json.load(file1)
-        file1.close()
+        with open("users.json", "r") as file1:
+            verify = json.load(file1)
         
-        userid1 = self.userid_verify.get()
-        if userid1 not in verify.keys():
+        userid = self.userid_verify.get()
+        introduced_password = self.password_verify.get()
+        self.userid_login_entry.delete(0, END)
+        self.password_login_entry.delete(0, END)
+
+        if userid not in verify.keys():
             self.id_not_found()
             return
 
-        self.salt = verify[userid1]["salt"]
-        password1 = base64.b64encode(crypto.hash_scrypt(self.password_verify.get(), self.salt)).decode("ascii")
-
-        self.userid_login_entry.delete(0, END)
-        self.password_login_entry.delete(0, END)
+        # Get salted password from entry in order to compare it with the stored one
+        self.salt = verify[userid]["salt"]
+        salted_password = base64.b64encode(crypto.hash_scrypt(introduced_password, self.salt)).decode("ascii")
         
-
-        password_not_recognised = False
-
-        for user in verify.keys():
-            if userid1 == user:
-                if verify[user]["password"] == password1:
-                    self.login_sucess(session_key,userid1)
-                    password_not_recognised = False
-                else:
-                    password_not_recognised = True
-
-
-        if password_not_recognised:
+        if verify[userid]["password"] == salted_password:
+            session_key = crypto.pbkdf2hmac(introduced_password)
+            self.login_sucess(session_key, userid)
+        else:
             self.password_not_recognised()
-
-    def login_sucess(self, session_key,userid):
+            
+    def login_sucess(self, session_key, userid):
         """
         Open the login success screen
         """
-        """
-        self.login_success_screen = Toplevel(self.login_screen)
-        self.login_success_screen.title("Success")
-        self.login_success_screen.geometry("150x100")
-        self.login_success_screen.resizable(False,False)
-        
-        self.login_success_screen.iconbitmap(self.login_icon_path)
-        
-        Label(self.login_success_screen, text="Login Success").pack()
-        Button(self.login_success_screen, text="OK", command=self.delete_login_success).pack()
-        """
-
         # Delete Login Screen & MainLogin Screen
         self.login_screen.destroy()
         self.main_login.destroy()
@@ -582,7 +562,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key, self.salt,userid)
+        Agenda(agenda_screen, session_key, self.salt, userid)
         agenda_screen.mainloop()
        
     
@@ -591,7 +571,7 @@ class MainLogIn:
         Open the password not recognised screen
         """
         self.password_not_recog_screen = Toplevel(self.login_screen)
-        self.password_not_recog_screen.title("Success")
+        self.password_not_recog_screen.title("password not recognised")
         self.password_not_recog_screen.geometry("150x100")
         self.password_not_recog_screen.resizable(False,False)
 
