@@ -29,7 +29,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self, agenda_screen, session_key, user_salt,user_id):
+    def __init__(self, agenda_screen, session_key,user_id):
         """
         Constructor method for Agenda Class
         """
@@ -37,7 +37,6 @@ class Agenda:
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
         self.session_key = session_key
-        self.user_salt = user_salt
 
         self.user_id = int(user_id)
 
@@ -268,12 +267,27 @@ class Agenda:
         Decrypts database contents on start of application
         """
         # Get the stored initialization vector and key for HMAC
-        cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
+        #cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
 
-        for row in cryptostore:
-            #if row[0] == self.user_id: 
-            self.iv = row[1]
-            self.salt_hmac = row[2]
+        db_ivstore = self.run_query(constants.QUERY_GET_IVSTORE)
+
+        db_salt_hmac_store = self.run_query(constants.QUERY_GET_SALT_HMAC_STORE)
+        
+        #IVSTORE
+        ivstore = []
+        for row in db_ivstore:
+            ivstore.append([])
+            row = row[1:]
+            for element in row:
+                ivstore[-1].append(element)
+
+        #SALT_HMAC_STORE
+        salt_hmac_store = []
+        for row in db_salt_hmac_store:
+            salt_hmac_store.append([])
+            row = row[1:]
+            for element in row:
+                salt_hmac_store[-1].append(element)
 
         # Get the stored hmac in the hmac table
         hmacstore = self.run_query(constants.QUERY_GET_HMAC)
@@ -281,10 +295,10 @@ class Agenda:
         # Table HMACs to authenticate data in the next loop
         hmac_data = []
         for row in hmacstore:
+            hmac_data.append([])            
+            row = row[1:]
             for element in row:
-                if element is not None:
-                    #print(element)
-                    hmac_data.append(element) 
+                hmac_data[-1].append(element) 
 
 
         # Get the stored encrypted contacts
@@ -292,41 +306,40 @@ class Agenda:
         # Init a list to store UPDATE parameters (both encrypted and decrypted data)
         param_list = []
         # Iterator to traverse HMAC array
-        i = 0
         # Store encrypted data and decrypted data separatedly (enc_data and dec_data)
         # in order to perform an update on the database
+        contador = 0
         for row in db_rows:
             dec_data = []
             enc_data = []
-            for element in row:            
+            row = row[1:]
+            for element in row:           
                 enc_data.append(element)
-                # Row ID is not encrypted, so it makes no sense to try to decrypt it
-                if type(element) != int:
-                    # Verifies the corresponding HMAC on every data
-                    try:
-                        crypto.verify_hmac( self.salt_hmac, bytes(element,"latin-1"), hmac_data[i] )
-                        # Decrypted data
-                        dec_data.append( crypto.symetric_decrypter( self.session_key, base64.b64decode(element), self.iv ).decode('latin-1') )
-                    
-                    except:
-                        # If it isnt verified, it raises an advice
-                        self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
-                        # Non Decrypted data
-                        dec_data.append(element)
 
+                # Verifies the corresponding HMAC on every data
+                try:
+                    crypto.verify_hmac( salt_hmac_store[contador//4][contador%4], bytes(element,"latin-1"), hmac_data[contador//4][contador%4] )
                     # Decrypted data
-                    #dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
-                    # update HMAC list iterator
-                    i+=1
-                else:
-                    # directly append row ID to decrypted list
+                    dec_data.append( crypto.symetric_decrypter( self.session_key, base64.b64decode(element), ivstore[contador//4][contador%4] ).decode('latin-1') )
+                        
+                    
+                except:
+                    print(contador)
+                    # If it isnt verified, it raises an advice
+                    self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
+                    # Non Decrypted data
                     dec_data.append(element)
 
+                # Decrypted data
+                #dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
+                # update HMAC list iterator
+                contador+=1 
+                   
             param_list.append((
-                                dec_data[1], dec_data[2],
-                                dec_data[3], dec_data[4],
-                                enc_data[1], enc_data[2], 
-                                enc_data[3], enc_data[4]
+                                dec_data[0], dec_data[1],
+                                dec_data[2], dec_data[3],
+                                enc_data[0], enc_data[1], 
+                                enc_data[2], enc_data[3]
                                 ))
                                 
         # UPDATE database by substituting encrypted data with decrypted data
@@ -346,65 +359,74 @@ class Agenda:
         # the old ones in 'cryptostore' table, so next time decrypt_on_open
         # has the new values available
 
+
         size = self.run_query(constants.QUERY_GET)
 
         # Counters the number of cells of the table
         counter = 0
         # 4 columns is constant
         for i in size:
-            counter+=4
+            counter+=1
         
         #IVSTORE
-
-        parameters_ivstore = [[os.urandom(16) for j in range(4)] for i in range(counter)]
+        parameters_ivstore = []
+        for i in range(counter):
+            parameters_ivstore.append([])
+            for j in range(4):
+                parameters_ivstore[i].append(os.urandom(16))
         
         self.run_query(constants.QUERY_DELETE_IVSTORE)
-        self.run_query(constants.QUERY_INSERT_IVSTORE, parameters_ivstore)
+        for i in parameters_ivstore:
+            self.run_query(constants.QUERY_INSERT_IVSTORE, i)
 
         #SALT_HMAC_STORE
-
-        parameters_salt_hmac_store = [[os.urandom(16) for j in range(4)] for i in range(counter)]
+        parameters_salt_hmac_store = []
+        for i in range(counter):
+            parameters_salt_hmac_store.append([])
+            for j in range(4):
+                parameters_salt_hmac_store[i].append(os.urandom(16))
         
         self.run_query(constants.QUERY_DELETE_SALT_HMAC_STORE)
-        self.run_query(constants.QUERY_INSERT_SALT_HMAC_STORE, parameters_salt_hmac_store)
+        for i in parameters_salt_hmac_store:
+            self.run_query(constants.QUERY_INSERT_SALT_HMAC_STORE, i)
 
         # Iterate throught each field of each contact and store separately ciphered data,
         # plain text and hmac of ciphered data in order to perform an update query on the database rows
         param_list = []
         param_hmac = []
         db_rows = self.run_query(constants.QUERY_GET)
+        contador = 0
         for row in db_rows:
             plain_data = []
             cipher_data = []
             hmac_data = []
+            row = row[1:]
             for element in row:            
                 plain_data.append(element)
-                #encrypterd_data = crypto.symetric_cipher(self.session_key, element, self.iv)
-                
-                #cipher_data.append(encrypterd_data)
-                
-                cipher_data.append( crypto.symetric_cipher(self.session_key, element, self.iv) )
+                cipher_data.append( crypto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
+                contador+=1
 
             # Save parameters to load in agenda database
             parameters = (
+                          base64.b64encode( cipher_data[0] ).decode("ascii"), 
                           base64.b64encode( cipher_data[1] ).decode("ascii"), 
                           base64.b64encode( cipher_data[2] ).decode("ascii"), 
                           base64.b64encode( cipher_data[3] ).decode("ascii"), 
-                          base64.b64encode( cipher_data[4] ).decode("ascii"), 
+                          plain_data[0],
                           plain_data[1],
-                          plain_data[2],
-                          plain_data[3], 
-                          plain_data[4]
+                          plain_data[2], 
+                          plain_data[3]
                         )
             
             # HMAC the parameters
-            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[0],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[1],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[2],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[3],"latin-1") ) )
+            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][0], bytes(parameters[0],"latin-1") ) )
+            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][1], bytes(parameters[1],"latin-1") ) )
+            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][2], bytes(parameters[2],"latin-1") ) )
+            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][3], bytes(parameters[3],"latin-1") ) )
 
             param_list.append(parameters)
             param_hmac.append(hmac_data)
+            
             
 
         # UPDATE database by substituting encrypted data with decrypted data
@@ -443,11 +465,11 @@ class MainLogIn:
 
         self.salt = None
         
-        #Check if exist any user
-        
+        # Check if an user already exists
         with open("users.json", "r") as users_json:
             users_json = json.load(users_json)
 
+        # If exists, log-in
         if users_json:        
 
             Label(text="Introduce your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
@@ -456,12 +478,19 @@ class MainLogIn:
             Button(text="Login", height="2", width="30", command = self.login).pack()
             Label(text="").pack()
         
+        # Else, register
         else:
+
+
+            self.main_login.geometry("300x200")
 
             Label(text="Register your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
             Label(text="").pack()
 
             Button(text="Register", height="2", width="30", command=self.register).pack()
+        
+            Button(text="Login", height="2", width="30", command = self.login).pack()
+            Label(text="").pack()
            
     
     def register(self):
@@ -592,7 +621,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key, self.salt, userid)
+        Agenda(agenda_screen, session_key, userid)
         agenda_screen.mainloop()
        
     
