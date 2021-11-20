@@ -3,6 +3,7 @@
 from tkinter import ttk
 from tkinter import *
 import os
+from typing import Container
 
 from cryptography.hazmat.primitives.ciphers.modes import ECB
 
@@ -42,7 +43,7 @@ class Agenda:
 
         self.iv = None
 
-        self.key_hmac = None
+        self.salt_hmac = None
 
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
@@ -272,7 +273,7 @@ class Agenda:
         for row in cryptostore:
             #if row[0] == self.user_id: 
             self.iv = row[1]
-            self.key_hmac = row[2]
+            self.salt_hmac = row[2]
 
         # Get the stored hmac in the hmac table
         hmacstore = self.run_query(constants.QUERY_GET_HMAC)
@@ -303,7 +304,7 @@ class Agenda:
                 if type(element) != int:
                     # Verifies the corresponding HMAC on every data
                     try:
-                        crypto.verify_hmac( self.key_hmac, bytes(element,"latin-1"), hmac_data[i] )
+                        crypto.verify_hmac( self.salt_hmac, bytes(element,"latin-1"), hmac_data[i] )
                         # Decrypted data
                         dec_data.append( crypto.symetric_decrypter( self.session_key, base64.b64decode(element), self.iv ).decode('latin-1') )
                     
@@ -344,13 +345,28 @@ class Agenda:
         # Generate two new values for encryption and authentication and update
         # the old ones in 'cryptostore' table, so next time decrypt_on_open
         # has the new values available
-        self.iv         = os.urandom(16)
-        self.key_hmac   = os.urandom(16)
 
-        # Updates the cryptostore table
-        parameters = (self.iv, self.key_hmac)
-        self.run_query(constants.QUERY_DELETE_CRYPTO)
-        self.run_query(constants.QUERY_INSERT_CRYPTO, parameters)
+        size = self.run_query(constants.QUERY_GET)
+
+        # Counters the number of cells of the table
+        counter = 0
+        # 4 columns is constant
+        for i in size:
+            counter+=4
+        
+        #IVSTORE
+
+        parameters_ivstore = [[os.urandom(16) for j in range(4)] for i in range(counter)]
+        
+        self.run_query(constants.QUERY_DELETE_IVSTORE)
+        self.run_query(constants.QUERY_INSERT_IVSTORE, parameters_ivstore)
+
+        #SALT_HMAC_STORE
+
+        parameters_salt_hmac_store = [[os.urandom(16) for j in range(4)] for i in range(counter)]
+        
+        self.run_query(constants.QUERY_DELETE_SALT_HMAC_STORE)
+        self.run_query(constants.QUERY_INSERT_SALT_HMAC_STORE, parameters_salt_hmac_store)
 
         # Iterate throught each field of each contact and store separately ciphered data,
         # plain text and hmac of ciphered data in order to perform an update query on the database rows
@@ -382,10 +398,10 @@ class Agenda:
                         )
             
             # HMAC the parameters
-            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[0],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[1],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[2],"latin-1") ) )
-            hmac_data.append( crypto.hmac( self.key_hmac, bytes(parameters[3],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[0],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[1],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[2],"latin-1") ) )
+            hmac_data.append( crypto.hmac( self.salt_hmac, bytes(parameters[3],"latin-1") ) )
 
             param_list.append(parameters)
             param_hmac.append(hmac_data)
@@ -418,7 +434,7 @@ class MainLogIn:
         Constructor method for the MainLogin class
         """
         self.main_login = main_login
-        self.main_login.geometry("300x250")
+        self.main_login.geometry("300x150")
         self.main_login.title("Account Login")
         self.main_login.resizable(False,False)
 
@@ -427,12 +443,26 @@ class MainLogIn:
 
         self.salt = None
         
+        #Check if exist any user
         
-        Label(text="Select Your Choice", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
-        Label(text="").pack()
-        Button(text="Login", height="2", width="30", command = self.login).pack()
-        Label(text="").pack()
-        Button(text="Register", height="2", width="30", command=self.register).pack()
+        with open("users.json", "r") as users_json:
+            users_json = json.load(users_json)
+
+        if users_json:        
+
+            Label(text="Introduce your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
+            Label(text="").pack()
+
+            Button(text="Login", height="2", width="30", command = self.login).pack()
+            Label(text="").pack()
+        
+        else:
+
+            Label(text="Register your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
+            Label(text="").pack()
+
+            Button(text="Register", height="2", width="30", command=self.register).pack()
+           
     
     def register(self):
         """

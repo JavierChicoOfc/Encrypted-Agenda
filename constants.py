@@ -9,8 +9,13 @@ QUERY_DELETE = "DELETE FROM agenda WHERE name = ?;"
 QUERY_UPDATE = "UPDATE agenda SET name = ?, telephone = ?, email = ?, description = ?  WHERE name = ? AND telephone = ? AND email = ? AND description = ?;"
 QUERY_GET    = "SELECT * FROM agenda;"
 
-QUERY_INSERT_CRYPTO = "INSERT INTO cryptostore VALUES(NULL, ?, ?);"
-QUERY_DELETE_CRYPTO = "DELETE FROM cryptostore WHERE 1=1;"
+QUERY_INSERT_IVSTORE = "INSERT INTO ivstore VALUES(NULL, ?, ?, ?, ?);"
+QUERY_DELETE_IVSTORE = "DELETE FROM ivstore WHERE 1=1;"
+
+QUERY_INSERT_SALT_HMAC_STORE = "INSERT INTO salt_hmac_store VALUES(NULL, ?, ?, ?, ?);"
+QUERY_DELETE_SALT_HMAC_STORE = "DELETE FROM salt_hmac_store WHERE 1=1;"
+
+
 QUERY_GET_CRYPTO    = "SELECT * FROM cryptostore;"
 
 QUERY_INSERT_HMAC = "INSERT INTO hmac VALUES (NULL ,?, ?, ?, ?);"

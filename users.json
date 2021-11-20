@@ -1,57 +1,7 @@
 {
     "0": {
-        "user": "jose"
-    },
-    "1": {
-        "id": "1",
-        "user": "U0tSsxXrTRlKgioGM58RCHmXeMg4NCQUUoQAVDb4/Ao=",
-        "password": "U0tSsxXrTRlKgioGM58RCHmXeMg4NCQUUoQAVDb4/Ao=",
-        "salt": "UygFDFYiy/K7eXPQAiViLg=="
-    },
-    "2": {
-        "id": "2",
-        "user": "iXEGJi/G+R1sZXdShV7KHCQvzajxzaqayDnyp6rCyd8=",
-        "password": "iXEGJi/G+R1sZXdShV7KHCQvzajxzaqayDnyp6rCyd8=",
-        "salt": "VF3V146q06wqsSppo3NC1A=="
-    },
-    "3": {
-        "user": "7PcGbPUyueVBdBYHKis/l/x7uaLbWwqp4XF+eUsquDg=",
-        "password": "7PcGbPUyueVBdBYHKis/l/x7uaLbWwqp4XF+eUsquDg=",
-        "salt": "dEJBNUmswpBuM4ZmK2abKA=="
-    },
-    "4": {
-        "user": "nzo9R7291MdfjxM2dOtbqS6ty6FJHT8dTnvhHutpj8A=",
-        "password": "nzo9R7291MdfjxM2dOtbqS6ty6FJHT8dTnvhHutpj8A=",
-        "salt": "Y8fL8Nv9jHnyD5Wn89EXew=="
-    },
-    "5": {
-        "user": "M/PG8KH89m3ELes81Avi+WiMflUfDA0rnGYb6Kgf0o0=",
-        "password": "M/PG8KH89m3ELes81Avi+WiMflUfDA0rnGYb6Kgf0o0=",
-        "salt": "nP4N+M67oqJTXIrZQuRDpw=="
-    },
-    "6": {
-        "user": "LR0T5Upyd0W/+M2Zv9S7tMcxAvt2doRd/c6k7ZlGKis=",
-        "password": "LR0T5Upyd0W/+M2Zv9S7tMcxAvt2doRd/c6k7ZlGKis=",
-        "salt": "g+BIjdgUwcbdaGxlzWqDvw=="
-    },
-    "7": {
-        "user": "Sh9ypxBhkDLYbu8Kfo+mKoqK04eIWrJPnMJHKv2mo+4=",
-        "password": "Sh9ypxBhkDLYbu8Kfo+mKoqK04eIWrJPnMJHKv2mo+4=",
-        "salt": "bKV2k1OM7YkDhuG2WSco4A=="
-    },
-    "8": {
-        "user": "u3x/bv1sD6/W0EIdlRcrfpXPak8b3scP6G/ogbR5u/I=",
-        "password": "u3x/bv1sD6/W0EIdlRcrfpXPak8b3scP6G/ogbR5u/I=",
-        "salt": "o846lAztBOS3DT91u7cHeA=="
-    },
-    "9": {
-        "user": "HxG7mi1HbQtUO705ywBL6T8q5orIb0vpgs1apbTPwo0=",
-        "password": "HxG7mi1HbQtUO705ywBL6T8q5orIb0vpgs1apbTPwo0=",
-        "salt": "Hq7sUDQqTdzgLjniT8k/yQ=="
-    },
-    "10": {
-        "user": "KX33KNvOnatk6oS5bxsQDsfUwYV8OUjGP7Cw0M3jHbg=",
-        "password": "KaUstQwL/DkuPfrfXAw8oaEp9DgItzdNX50zcHy+wvU=",
-        "salt": "2BUGa17bzzup4/enX6+TfQ=="
+        "user": "vMUqbhcxefMMOIHUcqPNnQ3TM9LyOpy9Cd+h0ePbLe4=",
+        "password": "vMUqbhcxefMMOIHUcqPNnQ3TM9LyOpy9Cd+h0ePbLe4=",
+        "salt": "a0WB+YpyUFwi8n28rOgQhw=="
     }
 }
