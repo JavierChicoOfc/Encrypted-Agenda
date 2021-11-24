@@ -19,6 +19,8 @@ import constants
 
 import time
 
+import random
+
 #[------------Classes------------]
 
 #[------Agenda------]
@@ -29,7 +31,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self, agenda_screen, session_key,user_id):
+    def __init__(self, agenda_screen, session_key,user_id, introduced_pw):
         """
         Constructor method for Agenda Class
         """
@@ -37,6 +39,7 @@ class Agenda:
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
         self.session_key = session_key
+        self.introduced_pw = introduced_pw
 
         self.user_id = int(user_id)
 
@@ -273,6 +276,15 @@ class Agenda:
 
         db_salt_hmac_store = self.run_query(constants.QUERY_GET_SALT_HMAC_STORE)
         
+        db_cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
+    
+        #CRYPTOSTORE
+        salt_pbk = os.urandom(16)
+        for i in db_cryptostore:
+            salt_pbk = i[1]
+
+        self.session_key = crypto.pbkdf2hmac(self.introduced_pw, salt_pbk)
+
         #IVSTORE
         ivstore = []
         for row in db_ivstore:
@@ -324,7 +336,6 @@ class Agenda:
                         
                     
                 except:
-                    print(contador)
                     # If it isnt verified, it raises an advice
                     self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
                     # Non Decrypted data
@@ -358,10 +369,19 @@ class Agenda:
         # Generate two new values for encryption and authentication and update
         # the old ones in 'cryptostore' table, so next time decrypt_on_open
         # has the new values available
+        
+        # Renew pbk salt, new session key
+        self.run_query(constants.QUERY_DELETE_CRYPTO)
 
+        salt_pbk_new = []
+        salt_pbk_new.append([os.urandom(16)])
+        
+        for i in salt_pbk_new:
+            self.run_query(constants.QUERT_INSERT_CRYPTO,i)
+        
+        self.session_key = crypto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
 
         size = self.run_query(constants.QUERY_GET)
-
         # Counters the number of cells of the table
         counter = 0
         # 4 columns is constant
@@ -564,9 +584,7 @@ class MainLogIn:
             with open("users.json", "r", encoding="utf-8") as users_file:
                 users_data = json.load(users_file)
 
-            contador = 0
-            while str(contador) in users_data.keys():
-                contador += 1
+            contador = random.randint(0,100)
 
             contador = str(contador)
             users_data[contador] = {}
@@ -592,9 +610,11 @@ class MainLogIn:
             verify = json.load(file1)
         
         userid = self.userid_verify.get()
-        introduced_password = self.password_verify.get()
+        self.introduced_password = self.password_verify.get()
         self.userid_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
+
+        salt_pbk = os.urandom(16)
 
         if userid not in verify.keys():
             self.id_not_found()
@@ -602,10 +622,10 @@ class MainLogIn:
 
         # Get salted password from entry in order to compare it with the stored one
         self.salt = verify[userid]["salt"]
-        salted_password = base64.b64encode(crypto.hash_scrypt(introduced_password, self.salt)).decode("ascii")
+        salted_password = base64.b64encode(crypto.hash_scrypt(self.introduced_password, self.salt)).decode("ascii")
         
         if verify[userid]["password"] == salted_password:
-            session_key = crypto.pbkdf2hmac(introduced_password)
+            session_key = crypto.pbkdf2hmac(self.introduced_password, salt_pbk)
             self.login_sucess(session_key, userid)
         else:
             self.password_not_recognised()
@@ -621,7 +641,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key, userid)
+        Agenda(agenda_screen, session_key, userid, self.introduced_password)
         agenda_screen.mainloop()
        
     
