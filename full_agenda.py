@@ -2,12 +2,10 @@
 
 from tkinter import ttk
 from tkinter import *
-import os
 from typing import Container
 
 from cryptography.hazmat.primitives.ciphers.modes import ECB
 
-from crypto import Cryptograpy
 
 import sqlite3
 
@@ -15,6 +13,8 @@ import base64
 
 import json
 
+from crypto import Cryptograpy
+import os
 import constants
 
 import datetime
@@ -34,6 +34,7 @@ class Agenda:
         """
         Constructor method for Agenda Class
         """
+        self.cripto = Cryptograpy()
         self.wind = agenda_screen
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
@@ -46,21 +47,22 @@ class Agenda:
 
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
-        self.wind.iconbitmap(self.agenda_icon_path)
+        try: self.wind.iconbitmap(self.agenda_icon_path)
+        except: pass
 
         with open("AC1/ac1cert.pem","rb") as ac1_certificate:
-            ac1_certificate = crypto.load_certificate(ac1_certificate.read())
+            ac1_certificate = self.cripto.load_certificate(ac1_certificate.read())
         try:
-            crypto.verify_sign(ac1_certificate)
+            self.cripto.verify_sign(ac1_certificate)
         except:
             Label(self.register_screen, text="Previous log failed on verification (AC1 certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
 
         # Checks if the sign on the log is correct
 
         with open("A/Acert.pem","rb") as a_certificate:
-            a_certificate = crypto.load_certificate(a_certificate.read())
+            a_certificate = self.cripto.load_certificate(a_certificate.read())
         try:
-            crypto.verify_sign(a_certificate)
+            self.cripto.verify_sign(a_certificate)
         except:
             Label(self.wind, text="Previous log failed on verification (A certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
 
@@ -292,13 +294,13 @@ class Agenda:
 
         msg = f"Session started at {time}"
 
-        hashed_msg = crypto.hash(msg.encode("UTF-8"))
+        hashed_msg = self.cripto.hash(msg.encode("UTF-8"))
     
-        private_key = crypto.load_private_key("A/Akey.pem")
+        private_key = self.cripto.load_private_key("A/Akey.pem")
 
-        serialize_key = crypto.serialize_key(private_key)
+        serialize_key = self.cripto.serialize_key(private_key)
 
-        signed_msg = crypto.signing(serialize_key,hashed_msg)
+        signed_msg = self.cripto.signing(serialize_key,hashed_msg)
 
         with open ("session.log","a") as file:
             file.write(signed_msg)
@@ -323,7 +325,7 @@ class Agenda:
         for i in db_cryptostore:
             salt_pbk = i[1]
 
-        self.session_key = crypto.pbkdf2hmac(self.introduced_pw, salt_pbk)
+        self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk)
 
         #IVSTORE
         ivstore = []
@@ -370,9 +372,9 @@ class Agenda:
 
                 # Verifies the corresponding HMAC on every data
                 try:
-                    crypto.verify_hmac( salt_hmac_store[contador//4][contador%4], bytes(element,"latin-1"), hmac_data[contador//4][contador%4] )
+                    self.cripto.verify_hmac( salt_hmac_store[contador//4][contador%4], bytes(element,"latin-1"), hmac_data[contador//4][contador%4] )
                     # Decrypted data
-                    dec_data.append( crypto.symetric_decrypter( self.session_key, base64.b64decode(element), ivstore[contador//4][contador%4] ).decode('latin-1') )
+                    dec_data.append( self.cripto.symetric_decrypter( self.session_key, base64.b64decode(element), ivstore[contador//4][contador%4] ).decode('latin-1') )
                         
                     
                 except:
@@ -382,7 +384,7 @@ class Agenda:
                     dec_data.append(element)
 
                 # Decrypted data
-                #dec_data.append(crypto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
+                #dec_data.append(self.cripto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
                 # update HMAC list iterator
                 contador+=1 
                    
@@ -419,7 +421,7 @@ class Agenda:
         for i in salt_pbk_new:
             self.run_query(constants.QUERT_INSERT_CRYPTO,i)
         
-        self.session_key = crypto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
+        self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
 
         size = self.run_query(constants.QUERY_GET)
         # Counters the number of cells of the table
@@ -463,7 +465,7 @@ class Agenda:
             row = row[1:]
             for element in row:            
                 plain_data.append(element)
-                cipher_data.append( crypto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
+                cipher_data.append( self.cripto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
                 contador+=1
 
             # Save parameters to load in agenda database
@@ -479,10 +481,10 @@ class Agenda:
                         )
             
             # HMAC the parameters
-            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][0], bytes(parameters[0],"latin-1") ) )
-            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][1], bytes(parameters[1],"latin-1") ) )
-            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][2], bytes(parameters[2],"latin-1") ) )
-            hmac_data.append( crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][3], bytes(parameters[3],"latin-1") ) )
+            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][0], bytes(parameters[0],"latin-1") ) )
+            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][1], bytes(parameters[1],"latin-1") ) )
+            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][2], bytes(parameters[2],"latin-1") ) )
+            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][3], bytes(parameters[3],"latin-1") ) )
 
             param_list.append(parameters)
             param_hmac.append(hmac_data)
@@ -502,7 +504,7 @@ class Agenda:
         
         # Close app
         self.wind.destroy()
-
+'''
 
 #[------MainLogIn------]
       
@@ -521,7 +523,8 @@ class MainLogIn:
         self.main_login.resizable(False,False)
 
         self.login_icon_path = os.getcwd() + "\icons\login_icon.ico"
-        self.main_login.iconbitmap(self.login_icon_path)
+        try: self.main_login.iconbitmap(self.login_icon_path)
+        except: pass
 
         self.salt = None
         
@@ -562,7 +565,8 @@ class MainLogIn:
         self.register_screen.geometry("300x250")
         self.register_screen.resizable(False,False)
 
-        self.register_screen.iconbitmap(self.login_icon_path)
+        try: self.register_screen.iconbitmap(self.login_icon_path)
+        except: pass
         
         self.username = StringVar()
         self.password = StringVar()
@@ -590,7 +594,8 @@ class MainLogIn:
         self.login_screen.geometry("300x250")
         self.login_screen.resizable(False,False)
 
-        self.login_screen.iconbitmap(self.login_icon_path)
+        try: self.login_screen.iconbitmap(self.login_icon_path)
+        except: pass
 
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
@@ -654,15 +659,22 @@ class MainLogIn:
         salt_pbk = os.urandom(16)
 
 
-        # Get salted password from entry in order to compare it with the stored one
+        # Get salted user and password from entry in order to compare it with 
+        # the stored ones
         self.salt = verify["salt"]
-        salted_password = base64.b64encode(crypto.hash_scrypt(self.introduced_password, self.salt)).decode("ascii")
-        
-        if verify["password"] == salted_password:
+        salted_password = base64.b64encode(crypto.hash_scrypt(
+                                                        self.introduced_password, 
+                                                        self.salt)
+                                                             ).decode("ascii")
+        salted_user = base64.b64encode(crypto.hash_scrypt(
+                                                        self.name_verify.get(), 
+                                                        self.salt)
+                                                             ).decode("ascii")
+        if verify["password"] == salted_password: #verify["user"] == salted_user and verify["password"] == salted_password:
             session_key = crypto.pbkdf2hmac(self.introduced_password, salt_pbk)
             self.login_sucess(session_key)
         else:
-            self.password_not_recognised()
+            self.not_recognised()
             
     def login_sucess(self, session_key):
         """
@@ -679,18 +691,19 @@ class MainLogIn:
         agenda_screen.mainloop()
        
     
-    def password_not_recognised(self):
+    def not_recognised(self):
         """
         Open the password not recognised screen
         """
         self.password_not_recog_screen = Toplevel(self.login_screen)
-        self.password_not_recog_screen.title("password not recognised")
+        self.password_not_recog_screen.title("User or password not recognised")
         self.password_not_recog_screen.geometry("150x100")
         self.password_not_recog_screen.resizable(False,False)
 
-        self.password_not_recog_screen.iconbitmap(self.login_icon_path)
+        try: self.password_not_recog_screen.iconbitmap(self.login_icon_path)
+        except: pass
         
-        Label(self.password_not_recog_screen, text="Invalid Password ").pack()
+        Label(self.password_not_recog_screen, text="Invalid User or Password ").pack()
         Button(self.password_not_recog_screen, text="OK", command=self.delete_password_not_recognised).pack()
     
     def id_not_found(self):
@@ -702,7 +715,8 @@ class MainLogIn:
         self.id_not_found_screen.geometry("150x100")
         self.id_not_found_screen.resizable(False,False)
 
-        self.id_not_found_screen.iconbitmap(self.login_icon_path)
+        try: self.id_not_found_screen.iconbitmap(self.login_icon_path)
+        except: pass
 
         Label(self.id_not_found_screen, text="Invalid ID ", fg="red", font=("Open Sans", 14)).pack()
         Button(self.id_not_found_screen, text="OK", command=self.delete_id_not_found_screen).pack()
@@ -726,8 +740,8 @@ class MainLogIn:
         Deletes the user not found screen
         """            
         self.id_not_found_screen.destroy()
-    
-
+'''
+'''
 if __name__== '__main__':
     """
     Initialize the Register & Log In screen
@@ -737,4 +751,4 @@ if __name__== '__main__':
     application = MainLogIn(main_login)
 
     main_login.mainloop()
-    
+'''

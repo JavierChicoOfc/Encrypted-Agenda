@@ -40,7 +40,7 @@ class Cryptograpy:
 
     def pbkdf2hmac(self, key_to_derive, salt_pbk):
         """
-        Takes a key returns a derivation to use it in symmetric cipher
+        Takes a key and returns a derivation to use it in symmetric cipher
         """
         kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=16, salt=salt_pbk, iterations=100000)
 
