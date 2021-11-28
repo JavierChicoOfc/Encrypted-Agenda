@@ -1,23 +1,17 @@
-from full_agenda import Agenda
-from typing import Container
+import base64
+import datetime
+import json
+import os
+import sqlite3
+import constants
+
+from cryptography.hazmat.primitives.ciphers.modes import ECB
 from tkinter import ttk
 from tkinter import *
 from typing import Container
-
 from crypto import Cryptograpy
+from full_agenda import Agenda
 
-from cryptography.hazmat.primitives.ciphers.modes import ECB
-
-import sqlite3
-
-import base64
-
-import json
-
-import os
-import constants
-
-import datetime
 
 #[------MainLogIn------]
       
@@ -26,14 +20,14 @@ class MainLogIn:
     Class that represents the Register & LogIn section with all the funcionalities
     """
 
-    def __init__(self,main_login):
+    def __init__(self, main_login):
         """
         Constructor method for the MainLogin class
         """
         self.main_login = main_login
         self.main_login.geometry("300x150")
         self.main_login.title("Account Login")
-        self.main_login.resizable(False,False)
+        self.main_login.resizable(False, False)
         
         self.cripto = Cryptograpy()
 
@@ -48,26 +42,17 @@ class MainLogIn:
             users_json = json.load(users_json)
 
         # If exists, log-in
-        if users_json:        
-
+        if users_json:
             Label(text="Introduce your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
             Label(text="").pack()
-
             Button(text="Login", height="2", width="30", command = self.login).pack()
             Label(text="").pack()
         
         # Else, register
         else:
-
-
-            self.main_login.geometry("300x200")
-
             Label(text="Register your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
             Label(text="").pack()
-
             Button(text="Register", height="2", width="30", command=self.register).pack()
-        
-            Button(text="Login", height="2", width="30", command = self.login).pack()
             Label(text="").pack()
            
     
@@ -78,7 +63,7 @@ class MainLogIn:
         self.register_screen = Toplevel(self.main_login)
         self.register_screen.title("Register")
         self.register_screen.geometry("300x250")
-        self.register_screen.resizable(False,False)
+        self.register_screen.resizable(False, False)
 
         try: self.register_screen.iconbitmap(self.login_icon_path)
         except: pass
@@ -107,7 +92,7 @@ class MainLogIn:
         self.login_screen = Toplevel(self.main_login)
         self.login_screen.title("Login")
         self.login_screen.geometry("300x250")
-        self.login_screen.resizable(False,False)
+        self.login_screen.resizable(False, False)
 
         try: self.login_screen.iconbitmap(self.login_icon_path)
         except: pass
@@ -118,7 +103,7 @@ class MainLogIn:
         self.name_verify = StringVar()
         self.password_verify = StringVar()
     
-        Label(self.login_screen, text="Nombre * ").pack()
+        Label(self.login_screen, text="Name * ").pack()
         self.name_login_entry = Entry(self.login_screen, textvariable=self.name_verify)
         self.name_login_entry.pack()
         Label(self.login_screen, text="").pack()
@@ -130,22 +115,18 @@ class MainLogIn:
     
     def register_user(self):
         """
-        Auxiliar method of register that write a new file with the new user´s data
+        Method of register a user
         """
 
         if self.username.get() == "" or self.password.get() == "":
             Label(self.register_screen, text="User or password is invalid", fg="red", font=("Open Sans", 14)).pack()
-
         else:
             self.salt = base64.b64encode( os.urandom(16) ).decode("ascii")
             username_info = base64.b64encode( self.cripto.hash_scrypt(self.username.get(), self.salt) ).decode("ascii")
             password_info = base64.b64encode( self.cripto.hash_scrypt(self.password.get(), self.salt) ).decode("ascii")
 
-            with open("users.json", "r", encoding="utf-8") as users_file:
-                users_data = json.load(users_file)
-
-
-            users_data = {}
+            # create the structure to store user's information and write it to users.json
+            users_data = dict()
             users_data["user"] = username_info
             users_data["password"] = password_info
             users_data["salt"] = self.salt
@@ -160,32 +141,28 @@ class MainLogIn:
     
     def login_verify(self):
         """
-        Auxiliar method of login that verifies the log-in checking the data files
+        Auxiliar method of login that verifies the log-in by checking the data file
         """
         
-        with open("users.json", "r") as file1:
-            verify = json.load(file1)
-        
-
+        # Retrieve data from storage
+        with open("users.json", "r") as file:
+            users_json = json.load(file)
+       
         self.introduced_password = self.password_verify.get()
+        
         self.name_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
-
-        salt_pbk = os.urandom(16)
 
 
         # Get salted user and password from entry in order to compare it with 
         # the stored ones
-        self.salt = verify["salt"]
-        salted_password = base64.b64encode(self.cripto.hash_scrypt(
-                                                        self.introduced_password, 
-                                                        self.salt)
-                                                             ).decode("ascii")
-        salted_user = base64.b64encode(self.cripto.hash_scrypt(
-                                                        self.name_verify.get(), 
-                                                        self.salt)
-                                                             ).decode("ascii")
-        if verify["password"] == salted_password: #verify["user"] == salted_user and verify["password"] == salted_password:
+        self.salt = users_json["salt"]
+        salted_password = base64.b64encode( self.cripto.hash_scrypt(self.introduced_password, self.salt) ).decode("ascii")
+        salted_user = base64.b64encode( self.cripto.hash_scrypt(self.name_verify.get(), self.salt) ).decode("ascii")
+        
+        if users_json["password"] == salted_password: #users_json["user"] == salted_user and users_json["password"] == salted_password:
+            # Generate session key from a random number and the introduced password
+            salt_pbk = os.urandom(16)
             session_key = self.cripto.pbkdf2hmac(self.introduced_password, salt_pbk)
             self.login_sucess(session_key)
         else:
@@ -200,7 +177,6 @@ class MainLogIn:
         self.main_login.destroy()
 
         #Init App
-
         agenda_screen = Tk()
         Agenda(agenda_screen, session_key, self.introduced_password)
         agenda_screen.mainloop()
@@ -210,16 +186,16 @@ class MainLogIn:
         """
         Open the password not recognised screen
         """
-        self.password_not_recog_screen = Toplevel(self.login_screen)
-        self.password_not_recog_screen.title("User or password not recognised")
-        self.password_not_recog_screen.geometry("150x100")
-        self.password_not_recog_screen.resizable(False,False)
+        self.not_recog_screen = Toplevel(self.login_screen)
+        self.not_recog_screen.title("User or password not recognised")
+        self.not_recog_screen.geometry("150x100")
+        self.not_recog_screen.resizable(False, False)
 
-        try: self.password_not_recog_screen.iconbitmap(self.login_icon_path)
+        try: self.not_recog_screen.iconbitmap(self.login_icon_path)
         except: pass
         
-        Label(self.password_not_recog_screen, text="Invalid User or Password ").pack()
-        Button(self.password_not_recog_screen, text="OK", command=self.delete_password_not_recognised).pack()
+        Label(self.not_recog_screen, text="Invalid User or Password ").pack()
+        Button(self.not_recog_screen, text="OK", command=self.delete_not_recognised).pack()
     
     def id_not_found(self):
         """
@@ -228,26 +204,19 @@ class MainLogIn:
         self.id_not_found_screen = Toplevel(self.login_screen)
         self.id_not_found_screen.title("Not found")
         self.id_not_found_screen.geometry("150x100")
-        self.id_not_found_screen.resizable(False,False)
+        self.id_not_found_screen.resizable(False, False)
 
         try: self.id_not_found_screen.iconbitmap(self.login_icon_path)
         except: pass
 
         Label(self.id_not_found_screen, text="Invalid ID ", fg="red", font=("Open Sans", 14)).pack()
         Button(self.id_not_found_screen, text="OK", command=self.delete_id_not_found_screen).pack()
-
-    def delete_login_success(self):
-        """
-        Deletes the login screen
-        """
-        self.login_success_screen.destroy()
     
-    
-    def delete_password_not_recognised(self):
+    def delete_not_recognised(self):
         """
         Deletes the password not recognised screen
         """        
-        self.password_not_recog_screen.destroy()
+        self.not_recog_screen.destroy()
     
     
     def delete_id_not_found_screen(self):

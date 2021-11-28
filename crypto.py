@@ -1,14 +1,12 @@
-from typing import Text
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from cryptography.hazmat.primitives import hashes,hmac
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import serialization
 import hashlib
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, hmac, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from typing import Text
+
 
 class Cryptograpy:
     """
@@ -16,19 +14,19 @@ class Cryptograpy:
     """
 
     def __init__(self):
-        
+      
         self.a_serialize_pw = b'aPW!'
 
-    def hash(self,msg):
+    def hash(self, msg):
         """
-        Hash a message
+        Hashes a given message
         """
         return hashlib.sha256(msg).hexdigest()
 
 
     def hash_scrypt(self, text, salt):
         """
-        Hash a given text (Used to hash usernames and passwords)
+        Hash a given text with a salt (Used to hash usernames and passwords)
         """
         kdf = Scrypt(salt=bytes( salt, 'latin-1'),
                      length=32,
@@ -107,44 +105,44 @@ class Cryptograpy:
         Serialize a given key to include it in a file
         """
         return certificate.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.BestAvailableEncryption(self.a_serialize_pw)
-        )
+                            encoding=serialization.Encoding.PEM,
+                            format=serialization.PrivateFormat.PKCS8,
+                            encryption_algorithm=serialization.BestAvailableEncryption(self.a_serialize_pw)
+                            )
 
     def signing(self,private_key,message):
         
         return private_key.sign(message,
-            padding.PSS(mgf=padding.MGF1(hashes.SHA512()),
-            salt_length=padding.PSS.MAX_LENGTH),
-            hashes.SHA512()
-            )
+                            padding.PSS(mgf=padding.MGF1(hashes.SHA512()),
+                            salt_length=padding.PSS.MAX_LENGTH),
+                            hashes.SHA512()
+                            )
 
     def load_private_key(self,path):
         """
         Deserialize a given private_key
         """
         with open(path, "rb") as key_file:
-            return serialization.load_pem_private_key(
-                key_file.read(),
-                password=self.a_serialize_pw,
-            )
+            pk = serialization.load_pem_private_key(
+                                            key_file.read(),
+                                            password=self.a_serialize_pw,
+                                            )
+        return pk
 
-    def load_certificate(self,pem_data):
+    def load_certificate(self, pem_data):
         """
         Deserialize a given certificate from pem encoded data
         """
         return x509.load_pem_x509_certificate(pem_data)
         
-    def verify_sign(self,cert):
-        issuer_public_key = cert.public_key()
-        cert_to_check = cert
+    def verify_sign(self, cert_to_check):
+        issuer_public_key = cert_to_check.public_key()
         issuer_public_key.verify(
-            cert_to_check.signature,
-            cert_to_check.tbs_certificate_bytes,
-            padding.PKCS1v15(),
-            cert_to_check.signature_hash_algorithm,
-        )
+                            cert_to_check.signature,
+                            cert_to_check.tbs_certificate_bytes,
+                            padding.PKCS1v15(),
+                            cert_to_check.signature_hash_algorithm,
+                            )
 
 
     

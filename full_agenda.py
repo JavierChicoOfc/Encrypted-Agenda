@@ -1,26 +1,17 @@
 #[------------Imports------------]
+import base64
+import datetime
+import json
+import os
+import sqlite3
+import constants as cte
 
+from cryptography.hazmat.primitives.ciphers.modes import ECB
 from tkinter import ttk
 from tkinter import *
 from typing import Container
-
-from cryptography.hazmat.primitives.ciphers.modes import ECB
-
-
-import sqlite3
-
-import base64
-
-import json
-
 from crypto import Cryptograpy
-import os
-import constants
 
-import datetime
-
-
-#[------------Classes------------]
 
 #[------Agenda------]
 
@@ -28,7 +19,7 @@ class Agenda:
     """
     Class that represents the Agenda with all the funcionalities
     """
-    db_name = constants.DB_NAME
+    db_name = cte.DB_NAME
 
     def __init__(self, agenda_screen, session_key, introduced_pw):
         """
@@ -38,79 +29,69 @@ class Agenda:
         self.wind = agenda_screen
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
+        self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
+        try: self.wind.iconbitmap(self.agenda_icon_path)
+        except: pass
+        
+        # Get useful data for symmetric cipher
         self.session_key = session_key
         self.introduced_pw = introduced_pw
 
-        self.iv = None
-
-        self.salt_hmac = None
-
-        self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
-
-        try: self.wind.iconbitmap(self.agenda_icon_path)
-        except: pass
-
-        with open("AC1/ac1cert.pem","rb") as ac1_certificate:
+        # Get AC1 certificate in order to verify it
+        with open("AC1/ac1cert.pem", "rb") as ac1_certificate:
             ac1_certificate = self.cripto.load_certificate(ac1_certificate.read())
+            
         try:
             self.cripto.verify_sign(ac1_certificate)
         except:
             Label(self.register_screen, text="Previous log failed on verification (AC1 certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
 
-        # Checks if the sign on the log is correct
-
-        with open("A/Acert.pem","rb") as a_certificate:
+        
+        # Get A certificate in order to verify it
+        '''
+        with open("A/Acert.pem", "rb") as a_certificate:
             a_certificate = self.cripto.load_certificate(a_certificate.read())
         try:
             self.cripto.verify_sign(a_certificate)
         except:
             Label(self.wind, text="Previous log failed on verification (A certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
-
+        '''
         # Creates a new log
-        self.log()
+        #self.log()
 
-
-        # Creating a Frame Containter
-        
+        ########## Creating a Frame Containter for the Agenda ###########
         frame = LabelFrame(self.wind, text = 'Register a new contact')
         frame.grid(row = 0, column = 0, columnspan = 3, pady = 20)
 
         # Name Input
-
         Label(frame, text= 'Name:').grid(row = 1,column = 0)
         self.name = Entry(frame)
         self.name.focus
         self.name.grid(row = 1, column = 1)
 
         # Telephone input
-
         Label(frame, text= 'Telephone:').grid(row = 2,column = 0)
         self.telephone = Entry(frame)
         self.telephone.grid(row = 2,column = 1)
 
         # Email input
-
         Label(frame, text= 'Email:').grid(row = 3,column = 0)
         self.email = Entry(frame)
         self.email.grid(row = 3,column = 1)
 
         # Description input
-
         Label(frame, text= 'Description:').grid(row = 4,column = 0)
         self.description = Entry(frame)
         self.description.grid(row = 4,column = 1)
 
         # Button Add Contact
-
         ttk.Button(frame, text = 'Save contact', command = self.add_contact).grid(row = 5, columnspan = 2,sticky = W+E)
 
         # Output messasges
-
         self.messsage = Label( text= "", fg = "red")
         self.messsage.grid(row = 3, column = 0, columnspan = 2, sticky = W + E)
 
         # Table
-
         self.tree = ttk.Treeview(height = 10, columns=("#0","#1","#2"))
         self.tree.grid(row = 6, column = 0, columnspan = 2)
         self.tree.heading("#0", text = "Name", anchor = CENTER)
@@ -119,33 +100,32 @@ class Agenda:
         self.tree.heading("#3", text = "Description", anchor = CENTER)
 
         # Buttons
-
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
+        ####################
 
-        # Decrypting database and filling the rows
-
+        # Decrypt database and fill the rows
         self.decrypt_on_open()
         
         # Encrypt the database when the app is closed
-
         self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
 
     def validation(self, *params):
         """
         Validation method that verify if the params have len 0
         """
+        ret = True
         for i in params:
             if len(i) == 0:
-                return False
-        return True
+                ret = False
+        return ret
 
     def add_contact(self):
         """
         Add a contact to the database
         """
         if self.validation(self.name.get(), self.telephone.get(), self.email.get(), self.description.get()):
-            query = constants.QUERY_INSERT
+            query = cte.QUERY_INSERT
             parameters = (self.name.get(), self.telephone.get(), self.email.get(), self.description.get())
             self.run_query(query, parameters)
             self.messsage["text"] = "Contact {} added successfully".format(self.name.get())
@@ -154,7 +134,7 @@ class Agenda:
             self.email.delete(0, END)
             self.description.delete(0, END)
         else:
-            self.messsage["text"] = constants.ERR_MISSING_PARAMS
+            self.messsage["text"] = cte.ERR_MISSING_PARAMS
         self.get_contacts()
 
     def delete_contact(self):
@@ -165,11 +145,11 @@ class Agenda:
         try:
             self.tree.item(self.tree.selection())["text"][0]
         except IndexError as error:
-            self.messsage["text"] = constants.ERR_REC_NOT_SELECTED
+            self.messsage["text"] = cte.ERR_REC_NOT_SELECTED
             return
         self.messsage["text"] = ""
         name = self.tree.item(self.tree.selection())["text"]
-        query = constants.QUERY_DELETE
+        query = cte.QUERY_DELETE
         self.run_query(query, (name,))
         self.messsage["text"] = " Record {} deleted successfully".format(name)
         self.get_contacts()
@@ -182,7 +162,7 @@ class Agenda:
         try:
             self.tree.item(self.tree.selection())["text"][0]
         except IndexError as error:
-            self.messsage["text"] = constants.ERR_REC_NOT_SELECTED
+            self.messsage["text"] = cte.ERR_REC_NOT_SELECTED
             return
         self.messsage["text"] = ""
         name            = self.tree.item(self.tree.selection())["text"]
@@ -246,13 +226,13 @@ class Agenda:
         Auxiliar method of edit_contacts that run the query to edit the records of the database
         """
         if self.validation(new_name, new_telephone, new_email, new_description):
-            query = constants.QUERY_UPDATE
+            query = cte.QUERY_UPDATE
             parameters = (new_name, new_telephone, new_email, new_description, name, old_telephone, old_email, old_description)
             self.run_query(query, parameters)
             self.edit_wind.destroy()
             self.messsage["text"] = "Contact {} updated successfully".format(name)
         else:
-            self.messsage["text"] = constants.ERR_MISSING_PARAMS
+            self.messsage["text"] = cte.ERR_MISSING_PARAMS
             
         self.get_contacts()
 
@@ -276,7 +256,7 @@ class Agenda:
         for element in records:
             self.tree.delete(element)
         
-        query = constants.QUERY_GET
+        query = cte.QUERY_GET
         db_rows = self.run_query(query)
         j = self.run_query(query)
         # Filling data
@@ -288,120 +268,113 @@ class Agenda:
         """
         Writes a log sign by the Certificate Authority
         """
+        # Create the log message (displays the time when the user logs in)
         now = datetime.datetime.now()
-
         time = now.strftime('%H:%M:%S on %A, %B the %dth, %Y')
-
         msg = f"Session started at {time}"
-
+        
+        # Prepare the digest to sign
         hashed_msg = self.cripto.hash(msg.encode("UTF-8"))
     
+        # Get the private key and sign the hashed message
         private_key = self.cripto.load_private_key("A/Akey.pem")
-
         serialize_key = self.cripto.serialize_key(private_key)
+        sign_for_msg = self.cripto.signing(serialize_key, hashed_msg)
 
-        signed_msg = self.cripto.signing(serialize_key,hashed_msg)
-
-        with open ("session.log","a") as file:
-            file.write(signed_msg)
-
-        
+        # Store the message
+        with open ("session.log", "w") as logfile:
+            logfile.write(sign_for_msg)
+            
+        # Store the sign
+        with open ("sign.s", "w") as signfile:
+            signfile.write(msg)
+            
+    def extract_from_table(self, cursor):
+        """
+        Auxiliar method to extract data from a table and return it in the form 
+        of a list of lists
+        """
+        out_data = list()
+        for row in cursor:
+            out_data.append([])
+            row = row[1:] #do not store row id
+            for element in row:
+                out_data[-1].append(element)
+                
+        return out_data
 
     def decrypt_on_open(self):
         """
         Decrypts database contents on start of application
         """
-        # Get the stored initialization vector and key for HMAC
-        #cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
-
-        db_ivstore = self.run_query(constants.QUERY_GET_IVSTORE)
-
-        db_salt_hmac_store = self.run_query(constants.QUERY_GET_SALT_HMAC_STORE)
-        
-        db_cryptostore = self.run_query(constants.QUERY_GET_CRYPTO)
+        # Retrieve last salt for derivation to use it in symmetric decryption
+        db_cryptostore = self.run_query(cte.QUERY_GET_CRYPTO)
     
-        #CRYPTOSTORE
-        salt_pbk = os.urandom(16)
+        #CRYPTOSTORE: get the salt and generate last session's key
         for i in db_cryptostore:
             salt_pbk = i[1]
-
         self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk)
 
-        #IVSTORE
-        ivstore = []
-        for row in db_ivstore:
-            ivstore.append([])
-            row = row[1:]
-            for element in row:
-                ivstore[-1].append(element)
+        #IVSTORE: get the IVs used in encryption last time
+        db_ivstore = self.run_query(cte.QUERY_GET_IVSTORE)
+        ivstore =    self.extract_from_table(db_ivstore)
 
-        #SALT_HMAC_STORE
-        salt_hmac_store = []
-        for row in db_salt_hmac_store:
-            salt_hmac_store.append([])
-            row = row[1:]
-            for element in row:
-                salt_hmac_store[-1].append(element)
+        #SALT_HMAC_STORE: get the HMAC salts used to authenticate data last time
+        db_salt_hmac_store = self.run_query(cte.QUERY_GET_SALT_HMAC_STORE)
+        salt_hmac_store =    self.extract_from_table(db_salt_hmac_store)
 
-        # Get the stored hmac in the hmac table
-        hmacstore = self.run_query(constants.QUERY_GET_HMAC)
+        #HMAC: get HMACs to authenticate data prior decrypting
+        db_hmacstore = self.run_query(cte.QUERY_GET_HMAC)
+        hmac_data =    self.extract_from_table(db_hmacstore)
 
-        # Table HMACs to authenticate data in the next loop
-        hmac_data = []
-        for row in hmacstore:
-            hmac_data.append([])            
-            row = row[1:]
-            for element in row:
-                hmac_data[-1].append(element) 
-
-
+        # Create a list to UPDATE agenda information (substitutes encrypted for decrypted data)
+        param_list = list()
         # Get the stored encrypted contacts
-        db_rows = self.run_query(constants.QUERY_GET)
-        # Init a list to store UPDATE parameters (both encrypted and decrypted data)
-        param_list = []
+        db_rows = self.run_query(cte.QUERY_GET)
         # Iterator to traverse HMAC array
-        # Store encrypted data and decrypted data separatedly (enc_data and dec_data)
-        # in order to perform an update on the database
         contador = 0
         for row in db_rows:
-            dec_data = []
-            enc_data = []
-            row = row[1:]
+            # Store encrypted data and decrypted data separatedly (enc_data and dec_data)
+            # in order to perform an update on the database
+            dec_data = list()
+            enc_data = list()
+            row = row[1:] # do not store row id
+            
             for element in row:           
                 enc_data.append(element)
-
-                # Verifies the corresponding HMAC on every data
+                # Verify the corresponding HMAC on every element
                 try:
-                    self.cripto.verify_hmac( salt_hmac_store[contador//4][contador%4], bytes(element,"latin-1"), hmac_data[contador//4][contador%4] )
-                    # Decrypted data
-                    dec_data.append( self.cripto.symetric_decrypter( self.session_key, base64.b64decode(element), ivstore[contador//4][contador%4] ).decode('latin-1') )
-                        
-                    
+                    self.cripto.verify_hmac( salt_hmac_store[contador//4][contador%4], 
+                                             bytes(element,"latin-1"), 
+                                             hmac_data[contador//4][contador%4] 
+                                            )
+                    # Data element is authenticated, now decrypt it
+                    dec_data.append( self.cripto.symetric_decrypter( self.session_key, 
+                                                                     base64.b64decode(element), 
+                                                                     ivstore[contador//4][contador%4] 
+                                                                    ).decode('latin-1') )                    
                 except:
-                    # If it isnt verified, it raises an advice
-                    self.messsage["text"] = constants.ERR_DATA_NOT_VERIFIED
-                    # Non Decrypted data
+                    # If it isn't verified, display a warning but don't stop working
+                    self.messsage["text"] = cte.ERR_DATA_NOT_VERIFIED
+                    # Do not decrypt non-authenticated data, just display it as it is to warn user
                     dec_data.append(element)
 
-                # Decrypted data
-                #dec_data.append(self.cripto.symetric_decrypter(self.session_key, base64.b64decode(element),self.iv).decode('latin-1'))
-                # update HMAC list iterator
-                contador+=1 
+                # Update HMAC list iterator
+                contador += 1 
                    
-            param_list.append((
-                                dec_data[0], dec_data[1],
+            # For each row, add row data to the list of parameters
+            param_list.append( (dec_data[0], dec_data[1],
                                 dec_data[2], dec_data[3],
                                 enc_data[0], enc_data[1], 
-                                enc_data[2], enc_data[3]
-                                ))
+                                enc_data[2], enc_data[3]) )
                                 
         # UPDATE database by substituting encrypted data with decrypted data
-        # Note: it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
+        # Note: it is mandatory to exhaust db_rows before performing this query: db_rows is a cursor
         #       pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
-            self.run_query(constants.QUERY_UPDATE, param_list[i])
+            self.run_query(cte.QUERY_UPDATE, param_list[i])
 
-        # Once contents are updated, load the information in the app
+        # Once contents are updated in the table, load the information in the app
         self.get_contacts()
         
     def encrypt_on_close(self):
@@ -412,23 +385,20 @@ class Agenda:
         # the old ones in 'cryptostore' table, so next time decrypt_on_open
         # has the new values available
         
-        # Renew pbk salt, new session key
-        self.run_query(constants.QUERY_DELETE_CRYPTO)
-
+        # Uptade table cryptostore with a new random salt for PBKDF2HMAC
+        self.run_query(cte.QUERY_DELETE_CRYPTO)
         salt_pbk_new = []
         salt_pbk_new.append([os.urandom(16)])
-        
         for i in salt_pbk_new:
-            self.run_query(constants.QUERT_INSERT_CRYPTO,i)
+            self.run_query(cte.QUERT_INSERT_CRYPTO,i)
         
         self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
 
-        size = self.run_query(constants.QUERY_GET)
-        # Counters the number of cells of the table
+        # We need the number of rows of the agenda in order to create new tables
+        # for the IVs, salts for HMAC
+        size = self.run_query(cte.QUERY_GET)
         counter = 0
-        # 4 columns is constant
-        for i in size:
-            counter+=1
+        for i in size: counter += 1
         
         #IVSTORE
         parameters_ivstore = []
@@ -437,9 +407,9 @@ class Agenda:
             for j in range(4):
                 parameters_ivstore[i].append(os.urandom(16))
         
-        self.run_query(constants.QUERY_DELETE_IVSTORE)
+        self.run_query(cte.QUERY_DELETE_IVSTORE)
         for i in parameters_ivstore:
-            self.run_query(constants.QUERY_INSERT_IVSTORE, i)
+            self.run_query(cte.QUERY_INSERT_IVSTORE, i)
 
         #SALT_HMAC_STORE
         parameters_salt_hmac_store = []
@@ -448,27 +418,29 @@ class Agenda:
             for j in range(4):
                 parameters_salt_hmac_store[i].append(os.urandom(16))
         
-        self.run_query(constants.QUERY_DELETE_SALT_HMAC_STORE)
+        self.run_query(cte.QUERY_DELETE_SALT_HMAC_STORE)
         for i in parameters_salt_hmac_store:
-            self.run_query(constants.QUERY_INSERT_SALT_HMAC_STORE, i)
+            self.run_query(cte.QUERY_INSERT_SALT_HMAC_STORE, i)
 
         # Iterate throught each field of each contact and store separately ciphered data,
         # plain text and hmac of ciphered data in order to perform an update query on the database rows
-        param_list = []
-        param_hmac = []
-        db_rows = self.run_query(constants.QUERY_GET)
+        param_list = list()
+        param_hmac = list()
         contador = 0
+        db_rows = self.run_query(cte.QUERY_GET)
         for row in db_rows:
-            plain_data = []
-            cipher_data = []
-            hmac_data = []
-            row = row[1:]
-            for element in row:            
+            plain_data = list()
+            cipher_data = list()
+            hmac_data = list()
+            row = row[1:] # do not store row id
+            
+            for element in row:
+                # Store both plain data and encrypted data in orden to perform an update later
                 plain_data.append(element)
                 cipher_data.append( self.cripto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
-                contador+=1
+                contador += 1
 
-            # Save parameters to load in agenda database
+            # Save current row information to update it later
             parameters = (
                           base64.b64encode( cipher_data[0] ).decode("ascii"), 
                           base64.b64encode( cipher_data[1] ).decode("ascii"), 
@@ -495,12 +467,12 @@ class Agenda:
         # Note: it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
         #       pointing to the database, so the base is locked while db_rows is not totally read
         for i in range(len(param_list)):
-            self.run_query(constants.QUERY_UPDATE, param_list[i])
+            self.run_query(cte.QUERY_UPDATE, param_list[i])
 
         # UPDATE HMAC table with new Message Authentication Codes
-        self.run_query(constants.QUERY_DELETE_HMAC)
+        self.run_query(cte.QUERY_DELETE_HMAC)
         for i in range(len(param_hmac)):
-            self.run_query(constants.QUERY_INSERT_HMAC, param_hmac[i])
+            self.run_query(cte.QUERY_INSERT_HMAC, param_hmac[i])
         
         # Close app
         self.wind.destroy()

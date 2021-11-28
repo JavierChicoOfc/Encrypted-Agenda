@@ -1,7 +1,7 @@
+from tkinter import *
+from tkinter import ttk
 from crypto import Cryptograpy
 from login import MainLogIn
-from tkinter import ttk
-from tkinter import *
 
 
 crypto = Cryptograpy()
