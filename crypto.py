@@ -3,16 +3,28 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives import hashes,hmac
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography import x509
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import serialization
+import hashlib
 
 class Cryptograpy:
     """
     Class that represents the cryptography methods used in this proyect
     """
+
     def __init__(self):
+        
+        self.a_serialize_pw = b'aPW!'
+
+    def hash(self,msg):
         """
-        Constructor for the class with the salt for pbkdf2hmac hardcoded
+        Hash a message
         """
-        self.salt_pbkdf2hmac = b'\x82\x167\x18\xf2\xc9\x80-~@\xf3\xe5\x1e.\x8d\x95'
+        return hashlib.sha256(msg).hexdigest()
+
 
     def hash_scrypt(self, text, salt):
         """
@@ -26,19 +38,19 @@ class Cryptograpy:
 
         return kdf.derive(bytes(text,"latin-1"))
 
-    def pbkdf2hmac(self, key_to_derive):
+    def pbkdf2hmac(self, key_to_derive, salt_pbk):
         """
         Takes a key returns a derivation to use it in symmetric cipher
         """
-        kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=16, salt=self.salt_pbkdf2hmac, iterations=100000)
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=16, salt=salt_pbk, iterations=100000)
 
         return kdf.derive(bytes(key_to_derive, "latin-1"))
 
-    def verify_pbkdf2hmac(self, text, hash):
+    def verify_pbkdf2hmac(self, text, hash, salt_pbk):
         """
         Verifies if the hash is the result of hashing the text, left for future uses
         """
-        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(), length=16, salt=self.salt_pbkdf2hmac, iterations=100000)
+        kdf = PBKDF2HMAC(algorithms=hashes.SHA512(), length=16, salt=salt_pbk, iterations=100000)
 
         return kdf.verify(bytes(text, "latin-1"), hash)
 
@@ -81,6 +93,58 @@ class Cryptograpy:
 
         return h.verify(signature)
 
+    def create_rsa_private_key(self):
+        """
+        Creates a RSA private key
+        """
+        return rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        )
+
+    def serialize_key(self,certificate):
+        """
+        Serialize a given key to include it in a file
+        """
+        return certificate.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.BestAvailableEncryption(self.a_serialize_pw)
+        )
+
+    def signing(self,private_key,message):
+        
+        return private_key.sign(message,
+            padding.PSS(mgf=padding.MGF1(hashes.SHA512()),
+            salt_length=padding.PSS.MAX_LENGTH),
+            hashes.SHA512()
+            )
+
+    def load_private_key(self,path):
+        """
+        Deserialize a given private_key
+        """
+        with open(path, "rb") as key_file:
+            return serialization.load_pem_private_key(
+                key_file.read(),
+                password=self.a_serialize_pw,
+            )
+
+    def load_certificate(self,pem_data):
+        """
+        Deserialize a given certificate from pem encoded data
+        """
+        return x509.load_pem_x509_certificate(pem_data)
+        
+    def verify_sign(self,cert):
+        issuer_public_key = cert.public_key()
+        cert_to_check = cert
+        issuer_public_key.verify(
+            cert_to_check.signature,
+            cert_to_check.tbs_certificate_bytes,
+            padding.PKCS1v15(),
+            cert_to_check.signature_hash_algorithm,
+        )
 
 
     

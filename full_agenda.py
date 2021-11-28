@@ -17,9 +17,8 @@ import json
 
 import constants
 
-import time
+import datetime
 
-import random
 
 #[------------Classes------------]
 
@@ -31,7 +30,7 @@ class Agenda:
     """
     db_name = constants.DB_NAME
 
-    def __init__(self, agenda_screen, session_key,user_id, introduced_pw):
+    def __init__(self, agenda_screen, session_key, introduced_pw):
         """
         Constructor method for Agenda Class
         """
@@ -41,8 +40,6 @@ class Agenda:
         self.session_key = session_key
         self.introduced_pw = introduced_pw
 
-        self.user_id = int(user_id)
-
         self.iv = None
 
         self.salt_hmac = None
@@ -50,6 +47,26 @@ class Agenda:
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
 
         self.wind.iconbitmap(self.agenda_icon_path)
+
+        with open("AC1/ac1cert.pem","rb") as ac1_certificate:
+            ac1_certificate = crypto.load_certificate(ac1_certificate.read())
+        try:
+            crypto.verify_sign(ac1_certificate)
+        except:
+            Label(self.register_screen, text="Previous log failed on verification (AC1 certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
+
+        # Checks if the sign on the log is correct
+
+        with open("A/Acert.pem","rb") as a_certificate:
+            a_certificate = crypto.load_certificate(a_certificate.read())
+        try:
+            crypto.verify_sign(a_certificate)
+        except:
+            Label(self.wind, text="Previous log failed on verification (A certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
+
+        # Creates a new log
+        self.log()
+
 
         # Creating a Frame Containter
         
@@ -264,6 +281,29 @@ class Agenda:
         for row in db_rows:
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
             
+
+    def log(self):
+        """
+        Writes a log sign by the Certificate Authority
+        """
+        now = datetime.datetime.now()
+
+        time = now.strftime('%H:%M:%S on %A, %B the %dth, %Y')
+
+        msg = f"Session started at {time}"
+
+        hashed_msg = crypto.hash(msg.encode("UTF-8"))
+    
+        private_key = crypto.load_private_key("A/Akey.pem")
+
+        serialize_key = crypto.serialize_key(private_key)
+
+        signed_msg = crypto.signing(serialize_key,hashed_msg)
+
+        with open ("session.log","a") as file:
+            file.write(signed_msg)
+
+        
 
     def decrypt_on_open(self):
         """
@@ -555,12 +595,12 @@ class MainLogIn:
         Label(self.login_screen, text="Please enter details below to login").pack()
         Label(self.login_screen, text="").pack()
     
-        self.userid_verify = StringVar()
+        self.name_verify = StringVar()
         self.password_verify = StringVar()
     
-        Label(self.login_screen, text="ID * ").pack()
-        self.userid_login_entry = Entry(self.login_screen, textvariable=self.userid_verify)
-        self.userid_login_entry.pack()
+        Label(self.login_screen, text="Nombre * ").pack()
+        self.name_login_entry = Entry(self.login_screen, textvariable=self.name_verify)
+        self.name_login_entry.pack()
         Label(self.login_screen, text="").pack()
         Label(self.login_screen, text="Password * ").pack()
         self.password_login_entry = Entry(self.login_screen, textvariable=self.password_verify, show= '*')
@@ -584,13 +624,11 @@ class MainLogIn:
             with open("users.json", "r", encoding="utf-8") as users_file:
                 users_data = json.load(users_file)
 
-            contador = random.randint(0,100)
 
-            contador = str(contador)
-            users_data[contador] = {}
-            users_data[contador]["user"] = username_info
-            users_data[contador]["password"] = password_info
-            users_data[contador]["salt"] = self.salt
+            users_data = {}
+            users_data["user"] = username_info
+            users_data["password"] = password_info
+            users_data["salt"] = self.salt
             
             with open("users.json", "w", encoding="utf-8") as users_file:
                 json.dump(users_data, users_file, indent=4)
@@ -599,7 +637,6 @@ class MainLogIn:
             self.password_entry.delete(0, END)
 
             Label(self.register_screen, text="Registration Success", fg="green", font=("Open Sans", 14)).pack()
-            Label(self.register_screen, text="Your ID is {}, keep it with you".format(contador), fg="green", font=("Open Sans", 14)).pack()
     
     def login_verify(self):
         """
@@ -609,28 +646,25 @@ class MainLogIn:
         with open("users.json", "r") as file1:
             verify = json.load(file1)
         
-        userid = self.userid_verify.get()
+
         self.introduced_password = self.password_verify.get()
-        self.userid_login_entry.delete(0, END)
+        self.name_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
 
         salt_pbk = os.urandom(16)
 
-        if userid not in verify.keys():
-            self.id_not_found()
-            return
 
         # Get salted password from entry in order to compare it with the stored one
-        self.salt = verify[userid]["salt"]
+        self.salt = verify["salt"]
         salted_password = base64.b64encode(crypto.hash_scrypt(self.introduced_password, self.salt)).decode("ascii")
         
-        if verify[userid]["password"] == salted_password:
+        if verify["password"] == salted_password:
             session_key = crypto.pbkdf2hmac(self.introduced_password, salt_pbk)
-            self.login_sucess(session_key, userid)
+            self.login_sucess(session_key)
         else:
             self.password_not_recognised()
             
-    def login_sucess(self, session_key, userid):
+    def login_sucess(self, session_key):
         """
         Open the login success screen
         """
@@ -641,7 +675,7 @@ class MainLogIn:
         #Init App
 
         agenda_screen = Tk()
-        Agenda(agenda_screen, session_key, userid, self.introduced_password)
+        Agenda(agenda_screen, session_key, self.introduced_password)
         agenda_screen.mainloop()
        
     

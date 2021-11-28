@@ -21,7 +21,8 @@ QUERY_GET_IVSTORE         = "SELECT * FROM ivstore;"
 QUERY_GET_SALT_HMAC_STORE = "SELECT * FROM salt_hmac_store;"
 
 QUERY_GET_CRYPTO          = "SELECT * FROM cryptostore;"
-QUERY_UPDATE_CRYPTO       = "UPDATE cryptostore SET salt_pbk = ? WHERE salt_pbk = ?;"
+QUERY_DELETE_CRYPTO       = "DELETE FROM cryptostore WHERE 1=1;"
+QUERT_INSERT_CRYPTO       = "INSERT INTO cryptostore VALUES(NULL, ?);"
 
 QUERY_INSERT_HMAC = "INSERT INTO hmac VALUES (NULL ,?, ?, ?, ?);"
 QUERY_DELETE_HMAC = "DELETE FROM hmac WHERE 1=1;"
