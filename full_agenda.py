@@ -42,22 +42,23 @@ class Agenda:
             ac1_certificate = self.cripto.load_certificate(ac1_certificate.read())
             
         try:
-            self.cripto.verify_sign(ac1_certificate)
+            self.cripto.verify_sign(ac1_certificate, None)
         except:
-            Label(self.register_screen, text="Previous log failed on verification (AC1 certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
+            pass
+            #Añadir popup excepción
 
         
         # Get A certificate in order to verify it
-        '''
+        
         with open("A/Acert.pem", "rb") as a_certificate:
             a_certificate = self.cripto.load_certificate(a_certificate.read())
         try:
-            self.cripto.verify_sign(a_certificate)
+            self.cripto.verify_sign(a_certificate,"ac1_key")
         except:
-            Label(self.wind, text="Previous log failed on verification (A certificate invalid)", fg="red", font=("Open Sans", 14)).pack()
-        '''
+            pass
+            #Añadir popup excepción
         # Creates a new log
-        #self.log()
+        self.log()
 
         ########## Creating a Frame Containter for the Agenda ###########
         frame = LabelFrame(self.wind, text = 'Register a new contact')
@@ -277,8 +278,8 @@ class Agenda:
         hashed_msg = self.cripto.hash(msg.encode("UTF-8"))
     
         # Get the private key and sign the hashed message
-        private_key = self.cripto.load_private_key("A/Akey.pem")
-        serialize_key = self.cripto.serialize_key(private_key)
+        private_key = self.cripto.load_private_key("A/Akey.pem",b"a_req_pw")
+        serialize_key = self.cripto.serialize_key(private_key,"ac1_key")
         sign_for_msg = self.cripto.signing(serialize_key, hashed_msg)
 
         # Store the message
@@ -476,7 +477,7 @@ class Agenda:
         
         # Close app
         self.wind.destroy()
-'''
+
 
 #[------MainLogIn------]
       
@@ -712,8 +713,7 @@ class MainLogIn:
         Deletes the user not found screen
         """            
         self.id_not_found_screen.destroy()
-'''
-'''
+
 if __name__== '__main__':
     """
     Initialize the Register & Log In screen
@@ -723,4 +723,4 @@ if __name__== '__main__':
     application = MainLogIn(main_login)
 
     main_login.mainloop()
-'''
+

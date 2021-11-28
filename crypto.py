@@ -5,17 +5,19 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from typing import Text
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 
 class Cryptograpy:
     """
     Class that represents the cryptography methods used in this proyect
     """
-
+    
     def __init__(self):
-      
-        self.a_serialize_pw = b'aPW!'
+        """
+        """
+
+        self.admin_pw = "r3s3T!"
 
     def hash(self, msg):
         """
@@ -100,18 +102,20 @@ class Cryptograpy:
         key_size=2048,
         )
 
-    def serialize_key(self,certificate):
+    def serialize_key(self,certificate,pw):
         """
         Serialize a given key to include it in a file
         """
         return certificate.private_bytes(
                             encoding=serialization.Encoding.PEM,
                             format=serialization.PrivateFormat.PKCS8,
-                            encryption_algorithm=serialization.BestAvailableEncryption(self.a_serialize_pw)
+                            encryption_algorithm=serialization.BestAvailableEncryption(self.admin_pw)
                             )
 
     def signing(self,private_key,message):
-        
+        """
+        Signs a given message with the private_key
+        """
         return private_key.sign(message,
                             padding.PSS(mgf=padding.MGF1(hashes.SHA512()),
                             salt_length=padding.PSS.MAX_LENGTH),
@@ -123,10 +127,7 @@ class Cryptograpy:
         Deserialize a given private_key
         """
         with open(path, "rb") as key_file:
-            pk = serialization.load_pem_private_key(
-                                            key_file.read(),
-                                            password=self.a_serialize_pw,
-                                            )
+            pk = serialization.load_pem_private_key(key_file.read(),password=self.admin_pw,)
         return pk
 
     def load_certificate(self, pem_data):
@@ -135,15 +136,14 @@ class Cryptograpy:
         """
         return x509.load_pem_x509_certificate(pem_data)
         
-    def verify_sign(self, cert_to_check):
-        issuer_public_key = cert_to_check.public_key()
+    def verify_sign(self, cert_to_check, pem_issuer_public_key):
+        issuer_public_key = load_pem_public_key(pem_issuer_public_key)
         issuer_public_key.verify(
                             cert_to_check.signature,
                             cert_to_check.tbs_certificate_bytes,
                             padding.PKCS1v15(),
                             cert_to_check.signature_hash_algorithm,
                             )
-
 
     
         
