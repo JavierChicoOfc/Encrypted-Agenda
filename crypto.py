@@ -5,7 +5,6 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 
 class Cryptograpy:
@@ -16,9 +15,7 @@ class Cryptograpy:
     def __init__(self):
         """
         """
-
         self.admin_pw = b"a_req"
-        #"r3s3T!"
 
     def hash(self, msg):
         """
@@ -103,7 +100,7 @@ class Cryptograpy:
         key_size=2048,
         )
     
-    def signing(self,private_key,message):
+    def signing(self, private_key, message):
         """
         Signs a given message with the private_key
         """
@@ -113,13 +110,12 @@ class Cryptograpy:
                             hashes.SHA512()
                             )
     
-
-    def load_private_key(self,path):
+    def load_private_key(self, path):
         """
         Deserialize a given private_key
         """
         with open(path, "rb") as key_file:
-            pk = serialization.load_pem_private_key(key_file.read(),password=self.admin_pw,)
+            pk = serialization.load_pem_private_key(key_file.read(), password=self.admin_pw)
         return pk
 
     def load_certificate(self, pem_data):
@@ -128,9 +124,9 @@ class Cryptograpy:
         """
         return x509.load_pem_x509_certificate(pem_data)
         
-    def verify_sign(self, cert_to_check, public_key):
+    def verify_certificate(self, cert_to_check, public_key):
         """
-        Verifies a given sign
+        Verifies a given certificate with the Authority's public key
         """
         public_key.verify(
                             cert_to_check.signature,

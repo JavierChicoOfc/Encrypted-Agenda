@@ -47,7 +47,6 @@ class MainLogIn:
             Label(text="").pack()
             Button(text="Login", height="2", width="30", command = self.login).pack()
             Label(text="").pack()
-        
         # Else, register
         else:
             Label(text="Register your user", bg="blue", width="300", height="2", font=("Open Sans", 14)).pack()
@@ -143,38 +142,38 @@ class MainLogIn:
         """
         Auxiliar method of login that verifies the log-in by checking the data file
         """
-        
-        # Retrieve data from storage
-        with open("users.json", "r") as file:
-            users_json = json.load(file)
-       
+        self.introduced_username = self.name_verify.get()
         self.introduced_password = self.password_verify.get()
         
         self.name_login_entry.delete(0, END)
         self.password_login_entry.delete(0, END)
 
-
-        # Get salted user and password from entry in order to compare it with 
-        # the stored ones
+        # Retrieve data from storage
+        with open("users.json", "r", encoding="utf-8") as file:
+            users_json = json.load(file)
+       
+        # Get salted user and password from entry in order to compare it with the stored ones
         self.salt = users_json["salt"]
         salted_password = base64.b64encode( self.cripto.hash_scrypt(self.introduced_password, self.salt) ).decode("ascii")
-        salted_user = base64.b64encode( self.cripto.hash_scrypt(self.name_verify.get(), self.salt) ).decode("ascii")
+        salted_user = base64.b64encode( self.cripto.hash_scrypt(self.introduced_username, self.salt) ).decode("ascii")
         
-        if users_json["password"] == salted_password: #users_json["user"] == salted_user and users_json["password"] == salted_password:
-            # Generate session key from a random number and the introduced password
-            salt_pbk = os.urandom(16)
-            session_key = self.cripto.pbkdf2hmac(self.introduced_password, salt_pbk)
-            self.login_sucess(session_key)
+        # Check whether introduced credentials match stored access information
+        if users_json["user"] == salted_user and users_json["password"] == salted_password:
+            self.login_sucess()
         else:
             self.not_recognised()
             
-    def login_sucess(self, session_key):
+    def login_sucess(self):
         """
         Open the login success screen
         """
         # Delete Login Screen & MainLogin Screen
         self.login_screen.destroy()
         self.main_login.destroy()
+                
+        # Generate session key from a random number and the introduced password
+        salt_pbk = os.urandom(16)
+        session_key = self.cripto.pbkdf2hmac(self.introduced_password, salt_pbk)
 
         #Init App
         agenda_screen = Tk()
@@ -188,7 +187,7 @@ class MainLogIn:
         """
         self.not_recog_screen = Toplevel(self.login_screen)
         self.not_recog_screen.title("User or password not recognised")
-        self.not_recog_screen.geometry("150x100")
+        self.not_recog_screen.geometry("200x90")
         self.not_recog_screen.resizable(False, False)
 
         try: self.not_recog_screen.iconbitmap(self.login_icon_path)
@@ -197,31 +196,9 @@ class MainLogIn:
         Label(self.not_recog_screen, text="Invalid User or Password ").pack()
         Button(self.not_recog_screen, text="OK", command=self.delete_not_recognised).pack()
     
-    def id_not_found(self):
-        """
-        Open the id not found screen
-        """
-        self.id_not_found_screen = Toplevel(self.login_screen)
-        self.id_not_found_screen.title("Not found")
-        self.id_not_found_screen.geometry("150x100")
-        self.id_not_found_screen.resizable(False, False)
-
-        try: self.id_not_found_screen.iconbitmap(self.login_icon_path)
-        except: pass
-
-        Label(self.id_not_found_screen, text="Invalid ID ", fg="red", font=("Open Sans", 14)).pack()
-        Button(self.id_not_found_screen, text="OK", command=self.delete_id_not_found_screen).pack()
-    
     def delete_not_recognised(self):
         """
         Deletes the password not recognised screen
         """        
         self.not_recog_screen.destroy()
-    
-    
-    def delete_id_not_found_screen(self):
-        """
-        Deletes the user not found screen
-        """            
-        self.id_not_found_screen.destroy()
-   
+
