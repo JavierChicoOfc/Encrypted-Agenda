@@ -9,9 +9,7 @@ import constants as cte
 from cryptography.hazmat.primitives.ciphers.modes import ECB
 from tkinter import ttk
 from tkinter import *
-from typing import Container
 from crypto import Cryptograpy
-
 
 #[------Agenda------]
 
@@ -42,10 +40,9 @@ class Agenda:
             ac1_certificate = self.cripto.load_certificate(ac1_certificate.read())
             
         try:
-            self.cripto.verify_sign(ac1_certificate, None)
+            self.cripto.verify_sign(ac1_certificate, ac1_certificate.public_key())
         except:
-            pass
-            #Añadir popup excepción
+            print("ERROR VERIFICACIÓN AC1")
 
         
         # Get A certificate in order to verify it
@@ -53,10 +50,10 @@ class Agenda:
         with open("A/Acert.pem", "rb") as a_certificate:
             a_certificate = self.cripto.load_certificate(a_certificate.read())
         try:
-            self.cripto.verify_sign(a_certificate,"ac1_key")
+            self.cripto.verify_sign(a_certificate,ac1_certificate.public_key())
         except:
-            pass
-            #Añadir popup excepción
+            print("ERROR VERIFICACIÓN A")
+
         # Creates a new log
         self.log()
 
@@ -278,17 +275,17 @@ class Agenda:
         hashed_msg = self.cripto.hash(msg.encode("UTF-8"))
     
         # Get the private key and sign the hashed message
-        private_key = self.cripto.load_private_key("A/Akey.pem",b"a_req_pw")
-        serialize_key = self.cripto.serialize_key(private_key,"ac1_key")
-        sign_for_msg = self.cripto.signing(serialize_key, hashed_msg)
+        private_key = self.cripto.load_private_key("A/Akey.pem")
+    
+        sign_for_msg = self.cripto.signing(private_key, bytes(hashed_msg,"latin-1"))
 
         # Store the message
         with open ("session.log", "w") as logfile:
-            logfile.write(sign_for_msg)
+            logfile.write(msg)
             
         # Store the sign
-        with open ("sign.s", "w") as signfile:
-            signfile.write(msg)
+        with open ("sign.sig", "w") as signfile:
+            signfile.write(base64.b64encode(sign_for_msg).decode("ascii"))
             
     def extract_from_table(self, cursor):
         """

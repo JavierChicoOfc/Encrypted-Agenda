@@ -17,7 +17,8 @@ class Cryptograpy:
         """
         """
 
-        self.admin_pw = "r3s3T!"
+        self.admin_pw = b"a_req"
+        #"r3s3T!"
 
     def hash(self, msg):
         """
@@ -101,17 +102,7 @@ class Cryptograpy:
         public_exponent=65537,
         key_size=2048,
         )
-
-    def serialize_key(self,certificate,pw):
-        """
-        Serialize a given key to include it in a file
-        """
-        return certificate.private_bytes(
-                            encoding=serialization.Encoding.PEM,
-                            format=serialization.PrivateFormat.PKCS8,
-                            encryption_algorithm=serialization.BestAvailableEncryption(self.admin_pw)
-                            )
-
+    
     def signing(self,private_key,message):
         """
         Signs a given message with the private_key
@@ -121,6 +112,7 @@ class Cryptograpy:
                             salt_length=padding.PSS.MAX_LENGTH),
                             hashes.SHA512()
                             )
+    
 
     def load_private_key(self,path):
         """
@@ -136,9 +128,11 @@ class Cryptograpy:
         """
         return x509.load_pem_x509_certificate(pem_data)
         
-    def verify_sign(self, cert_to_check, pem_issuer_public_key):
-        issuer_public_key = load_pem_public_key(pem_issuer_public_key)
-        issuer_public_key.verify(
+    def verify_sign(self, cert_to_check, public_key):
+        """
+        Verifies a given sign
+        """
+        public_key.verify(
                             cert_to_check.signature,
                             cert_to_check.tbs_certificate_bytes,
                             padding.PKCS1v15(),
