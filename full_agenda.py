@@ -1,12 +1,10 @@
 #[------------Imports------------]
 import base64
 import datetime
-import json
 import os
 import sqlite3
 import constants as cte
 
-from cryptography.hazmat.primitives.ciphers.modes import ECB
 from tkinter import ttk
 from tkinter import *
 from crypto import Cryptograpy
@@ -23,7 +21,7 @@ class Agenda:
         """
         Constructor method for Agenda Class
         """
-        self.cripto = Cryptograpy()
+        self.crypto = Cryptograpy()
         self.wind = agenda_screen
         self.wind.title('Personal agenda')
         self.wind.resizable(False,False)
@@ -35,28 +33,19 @@ class Agenda:
         self.session_key = session_key
         self.introduced_pw = introduced_pw
 
-        ########### Digital Sign section ###########
-        # Get AC1 certificate in order to verify it
-        with open("AC1/ac1cert.pem", "rb") as ac1_certificate:
-            ac1_certificate = self.cripto.load_certificate(ac1_certificate.read())
-        try:
-            self.cripto.verify_certificate(ac1_certificate, ac1_certificate.public_key())
-        except:
-            print("ERROR VERIFICACIÓN AC1")
+        #[--------Digital Sign section--------] 
+       
+        # Verifies the certificates
+        self.verify_certificates()
 
-        # Get A certificate in order to verify it
-        with open("A/Acert.pem", "rb") as a_certificate:
-            a_certificate = self.cripto.load_certificate(a_certificate.read())
-        try:
-            self.cripto.verify_certificate(a_certificate, ac1_certificate.public_key())
-        except:
-            print("ERROR VERIFICACIÓN A")
+        # Verifies the certificates
+        self.verify_sign()
 
         # Creates a new log and signs it
         self.log()
-        ################
 
-        ########## Creating a Frame Containter for the Agenda ###########
+        #[--------Creating a Frame Containter for the Agenda--------]
+
         frame = LabelFrame(self.wind, text = 'Register a new contact')
         frame.grid(row = 0, column = 0, columnspan = 3, pady = 20)
 
@@ -99,10 +88,13 @@ class Agenda:
         # Buttons
         ttk.Button(text = "Edit", command = self.edit_contacts).grid(row = 7, column = 0, sticky = W+E)
         ttk.Button(text = "Delete", command = self.delete_contact).grid(row = 7, column = 1, sticky = W+E)
-        ####################
+        
+        #[--------On open--------]
 
         # Decrypt database and fill the rows
         self.decrypt_on_open()
+        
+        #[--------On close--------]
         
         # Encrypt the database when the app is closed
         self.wind.protocol("WM_DELETE_WINDOW", self.encrypt_on_close)
@@ -255,11 +247,90 @@ class Agenda:
         
         query = cte.QUERY_GET
         db_rows = self.run_query(query)
-        j = self.run_query(query)
         # Filling data
         for row in db_rows:
             self.tree.insert("", 0, text = row[1], values = (row[2], row[3], row[4]))
             
+    def verify_certificates(self):
+        """
+        Verificates all the certificates
+        """    
+        # Get AC1 certificate in order to verify it    
+        with open("AC1/ac1cert.pem", "rb") as ac1_certificate:
+            ac1_certificate = self.crypto.load_certificate(ac1_certificate.read())
+        try:
+            self.crypto.verify_certificate(ac1_certificate, ac1_certificate.public_key())
+        except:
+            self.certificate_not_verified("Ac1")
+
+        # Get A certificate in order to verify it
+        with open("A/Acert.pem", "rb") as a_certificate:
+            a_certificate = self.crypto.load_certificate(a_certificate.read())
+        try:
+            self.crypto.verify_certificate(a_certificate, ac1_certificate.public_key())
+        except:
+            self.certificate_not_verified("A")
+
+    def certificate_not_verified(self,certificate_name):
+        """
+        Manage the error that occurs when a certificate is invalid
+        """
+        self.certificate_not_verified_screen = Toplevel(self.wind)
+        self.certificate_not_verified_screen.title(f"{certificate_name} not verified ")
+        self.certificate_not_verified_screen.geometry("500x75")
+        self.certificate_not_verified_screen.resizable(False, False)
+        Label(self.certificate_not_verified_screen, text=f"{certificate_name} not verified ", fg="red", font=("Open Sans", 14)).pack()
+        Button(self.certificate_not_verified_screen, text="OK", command=self.delete_certificate_not_verified).pack()
+
+    def delete_certificate_not_verified(self):
+        """
+        Destroy the certificate_not_verified window
+        """
+        self.certificate_not_verified_screen.destroy()
+    
+    def verify_sign(self):
+        """
+        Verifies a given sign
+        """
+        try:
+            with open ("session.log", "r") as logfile:
+                msg = logfile.read()
+        except:
+            return
+        
+        hashed_msg = self.crypto.hash(msg.encode("UTF-8"))
+
+        try:
+            with open ("sign.sig", "r") as signfile:
+                sign = bytes(signfile.read(),"latin-1")
+        except:
+            return
+        
+        with open("A\Acert.pem","rb") as public_key:
+            key = self.crypto.load_certificate(public_key.read())
+
+        
+        try:
+            self.crypto.verify_sign(key,sign,bytes(hashed_msg,"latin-1"))
+        except:
+            self.sign_not_verified()
+
+    def sign_not_verified(self):
+        """
+        Manage the error that occurs when a certificate is invalid
+        """
+        self.sign_not_verified_screen = Toplevel(self.wind)
+        self.sign_not_verified_screen.title("Sign is not verified ")
+        self.sign_not_verified_screen.geometry("500x75")
+        self.sign_not_verified_screen.resizable(False, False)
+        Label(self.sign_not_verified_screen, text="Sign is not verified ", fg="red", font=("Open Sans", 14)).pack()
+        Button(self.sign_not_verified_screen, text="OK", command=self.delete_sign_not_verified).pack()
+
+    def delete_sign_not_verified(self):
+        """
+        Destroy the certificate_not_verified window
+        """
+        self.sign_not_verified_screen.destroy()
 
     def log(self):
         """
@@ -271,12 +342,12 @@ class Agenda:
         msg = f"Session started at {time}"
         
         # Prepare the digest to sign
-        hashed_msg = self.cripto.hash(msg.encode("UTF-8"))
+        hashed_msg = self.crypto.hash(msg.encode("UTF-8"))
     
         # Get the private key and sign the hashed message
-        private_key = self.cripto.load_private_key("A/Akey.pem")
+        private_key = self.crypto.load_private_key("A/Akey.pem")
     
-        sign_for_msg = self.cripto.signing(private_key, bytes(hashed_msg,"latin-1"))
+        sign_for_msg = self.crypto.signing(private_key, bytes(hashed_msg,"latin-1"))
 
         # Store the message
         with open ("session.log", "w") as logfile:
@@ -285,6 +356,7 @@ class Agenda:
         # Store the sign
         with open ("sign.sig", "w") as signfile:
             signfile.write(base64.b64encode(sign_for_msg).decode("ascii"))
+
             
     def extract_from_table(self, cursor):
         """
@@ -310,7 +382,7 @@ class Agenda:
         #CRYPTOSTORE: get the salt and generate last session's key
         for i in db_cryptostore:
             salt_pbk = i[1]
-        self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk)
+        self.session_key = self.crypto.pbkdf2hmac(self.introduced_pw, salt_pbk)
 
         #IVSTORE: get the IVs used in encryption last time
         db_ivstore = self.run_query(cte.QUERY_GET_IVSTORE)
@@ -341,12 +413,12 @@ class Agenda:
                 enc_data.append(element)
                 # Verify the corresponding HMAC on every element
                 try:
-                    self.cripto.verify_hmac( salt_hmac_store[contador//4][contador%4], 
+                    self.crypto.verify_hmac( salt_hmac_store[contador//4][contador%4], 
                                              bytes(element,"latin-1"), 
                                              hmac_data[contador//4][contador%4] 
                                             )
                     # Data element is authenticated, now decrypt it
-                    dec_data.append( self.cripto.symetric_decrypter( self.session_key, 
+                    dec_data.append( self.crypto.symetric_decrypter( self.session_key, 
                                                                      base64.b64decode(element), 
                                                                      ivstore[contador//4][contador%4] 
                                                                     ).decode('latin-1') )                    
@@ -389,7 +461,7 @@ class Agenda:
         for i in salt_pbk_new:
             self.run_query(cte.QUERT_INSERT_CRYPTO,i)
         
-        self.session_key = self.cripto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
+        self.session_key = self.crypto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
 
         # We need the number of rows of the agenda in order to create new tables
         # for the IVs, salts for HMAC
@@ -434,7 +506,7 @@ class Agenda:
             for element in row:
                 # Store both plain data and encrypted data in orden to perform an update later
                 plain_data.append(element)
-                cipher_data.append( self.cripto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
+                cipher_data.append( self.crypto.symetric_cipher(self.session_key, element, parameters_ivstore[contador//4][contador%4]))
                 contador += 1
 
             # Save current row information to update it later
@@ -450,10 +522,10 @@ class Agenda:
                         )
             
             # HMAC the parameters
-            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][0], bytes(parameters[0],"latin-1") ) )
-            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][1], bytes(parameters[1],"latin-1") ) )
-            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][2], bytes(parameters[2],"latin-1") ) )
-            hmac_data.append( self.cripto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][3], bytes(parameters[3],"latin-1") ) )
+            hmac_data.append( self.crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][0], bytes(parameters[0],"latin-1") ) )
+            hmac_data.append( self.crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][1], bytes(parameters[1],"latin-1") ) )
+            hmac_data.append( self.crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][2], bytes(parameters[2],"latin-1") ) )
+            hmac_data.append( self.crypto.hmac( parameters_salt_hmac_store[(contador-len(row))//4][3], bytes(parameters[3],"latin-1") ) )
 
             param_list.append(parameters)
             param_hmac.append(hmac_data)

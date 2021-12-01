@@ -90,33 +90,42 @@ class Cryptograpy:
         h.update(text)
 
         return h.verify(signature)
-
-    def create_rsa_private_key(self):
-        """
-        Creates a RSA private key
-        """
-        return rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        )
     
     def signing(self, private_key, message):
         """
         Signs a given message with the private_key
         """
+        print("PVK-S",private_key.public_key())
         return private_key.sign(message,
-                            padding.PSS(mgf=padding.MGF1(hashes.SHA512()),
+                            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
                             salt_length=padding.PSS.MAX_LENGTH),
-                            hashes.SHA512()
+                            hashes.SHA256()
                             )
+    
+    def verify_sign(self,key,signature,message):
+        """
+        Verifies a given sign
+        """
+        print("PVK-VF",key.public_key())
+        public_key = key.public_key()
+        public_key.verify(
+            signature,
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+            )
+
     
     def load_private_key(self, path):
         """
         Deserialize a given private_key
         """
         with open(path, "rb") as key_file:
-            pk = serialization.load_pem_private_key(key_file.read(), password=self.admin_pw)
-        return pk
+            return serialization.load_pem_private_key(key_file.read(), password=self.admin_pw)
+        
 
     def load_certificate(self, pem_data):
         """
@@ -134,6 +143,8 @@ class Cryptograpy:
                             padding.PKCS1v15(),
                             cert_to_check.signature_hash_algorithm,
                             )
+   
+
 
     
         
