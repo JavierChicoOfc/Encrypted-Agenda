@@ -15,7 +15,7 @@ class Cryptograpy:
     def __init__(self):
         """
         """
-        self.admin_pw = b"a_req"
+        self.admin_pw = b'pepe'
 
     def hash(self, msg):
         """
@@ -82,7 +82,7 @@ class Cryptograpy:
 
         return h.finalize()
 
-    def verify_hmac(self,key,text,signature):
+    def verify_hmac(self, key, text, signature):
         """
         Authenticate a given text with an auth_tag (signature)
         """
@@ -95,37 +95,32 @@ class Cryptograpy:
         """
         Signs a given message with the private_key
         """
-        print("PVK-S",private_key.public_key())
-        return private_key.sign(message,
-                            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
-                            salt_length=padding.PSS.MAX_LENGTH),
-                            hashes.SHA256()
-                            )
+        
+        return private_key.sign( message,
+                                 padding.PSS(
+                                             mgf=padding.MGF1(hashes.SHA256()),
+                                             salt_length=padding.PSS.MAX_LENGTH
+                                            ),
+                                 hashes.SHA256() )
     
-    def verify_sign(self,key,signature,message):
+    def verify_sign(self, public_key, signature, message):
         """
-        Verifies a given sign
+        Verifies the 'signature' of a 'message' using the signer's 'public_key' 
         """
-        print("PVK-VF",key.public_key())
-        public_key = key.public_key()
-        public_key.verify(
-            signature,
-            message,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-            )
-
+        public_key.verify( signature, 
+                           message,
+                           padding.PSS(
+                                       mgf=padding.MGF1(hashes.SHA256()),
+                                       salt_length=padding.PSS.MAX_LENGTH
+                                      ),
+                           hashes.SHA256() )
     
     def load_private_key(self, path):
         """
-        Deserialize a given private_key
+        Deserialize a given private_key by taking its location
         """
         with open(path, "rb") as key_file:
             return serialization.load_pem_private_key(key_file.read(), password=self.admin_pw)
-        
 
     def load_certificate(self, pem_data):
         """
@@ -144,9 +139,3 @@ class Cryptograpy:
                             cert_to_check.signature_hash_algorithm,
                             )
    
-
-
-    
-        
-
-    

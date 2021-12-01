@@ -33,7 +33,7 @@ default_ca	= CA_default		# The default ca section
 ####################################################################
 [ CA_default ]
 
-dir		= ./		# Where everything is kept
+dir		= .		# Where everything is kept
 certs		= $dir/certificados	# Where the issued certs are kept
 crl_dir		= $dir/crls		# Where the issued crl are kept
 database	= $dir/index.txt	# database index file.
@@ -46,7 +46,7 @@ serial		= $dir/serial 		# The current serial number
 #crlnumber	= $dir/crlnumber	# the current crl number
 					# must be commented out to leave a V1 CRL
 crl		= $dir/ca1crl.pem 		# The current CRL
-private_key	= $dir/privado/ca1key.pem# The private key
+private_key	= $dir/privado/AC1privateKey.key# The private key
 RANDFILE	= $dir/privado/.rand	# private random number file
 
 #x509_extensions	= usr_cert		# The extentions to add to the cert
@@ -98,7 +98,7 @@ emailAddress		= optional
 ####################################################################
 [ req ]
 default_bits		= 2048
-default_keyfile 	= ./privado/ca1key.pem
+default_keyfile 	= ./privado/AC1privateKey.key
 default_md		= sha1	
 prompt			= no 
 distinguished_name	= req_distinguished_name

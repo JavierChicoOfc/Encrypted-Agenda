@@ -24,7 +24,7 @@ class Agenda:
         self.crypto = Cryptograpy()
         self.wind = agenda_screen
         self.wind.title('Personal agenda')
-        self.wind.resizable(False,False)
+        self.wind.resizable(False, False)
         self.agenda_icon_path = os.getcwd() + "\icons\lock_agenda.ico"
         try: self.wind.iconbitmap(self.agenda_icon_path)
         except: pass
@@ -38,7 +38,7 @@ class Agenda:
         # Verifies the certificates
         self.verify_certificates()
 
-        # Verifies the certificates
+        # Verifies the sign of the latter log
         self.verify_sign()
 
         # Creates a new log and signs it
@@ -101,7 +101,7 @@ class Agenda:
 
     def validation(self, *params):
         """
-        Validation method that verify if the params have len 0
+        Validation method that checks if user has introduced all required parameters
         """
         ret = True
         for i in params:
@@ -153,6 +153,7 @@ class Agenda:
         except IndexError as error:
             self.messsage["text"] = cte.ERR_REC_NOT_SELECTED
             return
+            
         self.messsage["text"] = ""
         name            = self.tree.item(self.tree.selection())["text"]
         old_telephone   = self.tree.item(self.tree.selection())["values"][0]
@@ -253,84 +254,59 @@ class Agenda:
             
     def verify_certificates(self):
         """
-        Verificates all the certificates
+        Verifies all the certificates in our PKI: certification authority AC1 and app A
         """    
         # Get AC1 certificate in order to verify it    
-        with open("AC1/ac1cert.pem", "rb") as ac1_certificate:
-            ac1_certificate = self.crypto.load_certificate(ac1_certificate.read())
+        with open("AC1/ac1cert.pem", "rb") as ac1_certificate_file:
+            ac1_certificate = self.crypto.load_certificate(ac1_certificate_file.read())
         try:
             self.crypto.verify_certificate(ac1_certificate, ac1_certificate.public_key())
         except:
             self.certificate_not_verified("Ac1")
 
         # Get A certificate in order to verify it
-        with open("A/Acert.pem", "rb") as a_certificate:
-            a_certificate = self.crypto.load_certificate(a_certificate.read())
+        with open("A/Acertificate.pem", "rb") as a_certificate_file:
+            a_certificate = self.crypto.load_certificate(a_certificate_file.read())
         try:
             self.crypto.verify_certificate(a_certificate, ac1_certificate.public_key())
         except:
             self.certificate_not_verified("A")
 
-    def certificate_not_verified(self,certificate_name):
-        """
-        Manage the error that occurs when a certificate is invalid
-        """
-        self.certificate_not_verified_screen = Toplevel(self.wind)
-        self.certificate_not_verified_screen.title(f"{certificate_name} not verified ")
-        self.certificate_not_verified_screen.geometry("500x75")
-        self.certificate_not_verified_screen.resizable(False, False)
-        Label(self.certificate_not_verified_screen, text=f"{certificate_name} not verified ", fg="red", font=("Open Sans", 14)).pack()
-        Button(self.certificate_not_verified_screen, text="OK", command=self.delete_certificate_not_verified).pack()
-
-    def delete_certificate_not_verified(self):
-        """
-        Destroy the certificate_not_verified window
-        """
-        self.certificate_not_verified_screen.destroy()
-    
     def verify_sign(self):
         """
-        Verifies a given sign
+        Verifies the signature of the previous log
         """
+        # If there isn't any log, return with no error
         try:
             with open ("session.log", "r") as logfile:
                 msg = logfile.read()
         except:
             return
         
+        # Obtain the hash of the message to sign it
         hashed_msg = self.crypto.hash(msg.encode("UTF-8"))
 
+        # If there is no signature file, session.log hasn't been signed, warn user
+        # and do not waste time trying to verify a non existent signature
         try:
             with open ("sign.sig", "r") as signfile:
-                sign = bytes(signfile.read(),"latin-1")
+                sign = base64.b64decode(signfile.read())
         except:
+            self.sign_not_verified()
             return
         
-        with open("A\Acert.pem","rb") as public_key:
-            key = self.crypto.load_certificate(public_key.read())
+        # Get app certificate and extract its public key
+        with open("A/Acertificate.pem", "rb") as a_certificate_file:
+            a_certificate = self.crypto.load_certificate(a_certificate_file.read())
 
-        
+        public_key = a_certificate.public_key()
+
+        # In case signature doesn't match, warn user
         try:
-            self.crypto.verify_sign(key,sign,bytes(hashed_msg,"latin-1"))
+            self.crypto.verify_sign(public_key, sign, bytes(hashed_msg, "latin-1"))
         except:
             self.sign_not_verified()
 
-    def sign_not_verified(self):
-        """
-        Manage the error that occurs when a certificate is invalid
-        """
-        self.sign_not_verified_screen = Toplevel(self.wind)
-        self.sign_not_verified_screen.title("Sign is not verified ")
-        self.sign_not_verified_screen.geometry("500x75")
-        self.sign_not_verified_screen.resizable(False, False)
-        Label(self.sign_not_verified_screen, text="Sign is not verified ", fg="red", font=("Open Sans", 14)).pack()
-        Button(self.sign_not_verified_screen, text="OK", command=self.delete_sign_not_verified).pack()
-
-    def delete_sign_not_verified(self):
-        """
-        Destroy the certificate_not_verified window
-        """
-        self.sign_not_verified_screen.destroy()
 
     def log(self):
         """
@@ -345,9 +321,9 @@ class Agenda:
         hashed_msg = self.crypto.hash(msg.encode("UTF-8"))
     
         # Get the private key and sign the hashed message
-        private_key = self.crypto.load_private_key("A/Akey.pem")
-    
-        sign_for_msg = self.crypto.signing(private_key, bytes(hashed_msg,"latin-1"))
+        private_key = self.crypto.load_private_key("A/AprivateKey.key")
+        
+        sign_for_msg = self.crypto.signing(private_key, bytes(hashed_msg, "latin-1"))
 
         # Store the message
         with open ("session.log", "w") as logfile:
@@ -355,7 +331,7 @@ class Agenda:
             
         # Store the sign
         with open ("sign.sig", "w") as signfile:
-            signfile.write(base64.b64encode(sign_for_msg).decode("ascii"))
+            signfile.write( base64.b64encode(sign_for_msg).decode("ascii") )
 
             
     def extract_from_table(self, cursor):
@@ -365,12 +341,36 @@ class Agenda:
         """
         out_data = list()
         for row in cursor:
-            out_data.append([])
+            out_data.append(list())
             row = row[1:] #do not store row id
             for element in row:
                 out_data[-1].append(element)
                 
         return out_data
+        
+    def generate_new_params(self, name: str, counter: int)->list:
+        """
+        Generates a list of 'counter' (rows) elements, each one being a 4-element
+        list containing random values. Auxiliar method for encrypt_on_close()
+        """
+        parameters = list()
+        for i in range(counter):
+            parameters.append(list())
+            for j in range(4):
+                parameters[i].append(os.urandom(16))
+        
+        if name == "salt_hmac":
+            query_delete = cte.QUERY_DELETE_SALT_HMAC_STORE
+            query_insert = cte.QUERY_INSERT_SALT_HMAC_STORE
+        elif name == "iv":
+            query_delete = cte.QUERY_DELETE_IVSTORE
+            query_insert = cte.QUERY_INSERT_IVSTORE
+        
+        self.run_query(query_delete)
+        for i in parameters:
+            self.run_query(query_insert, i)
+        
+        return parameters
 
     def decrypt_on_open(self):
         """
@@ -450,16 +450,13 @@ class Agenda:
         """
         Encrypts database right before closing the app
         """
-        # Generate two new values for encryption and authentication and update
-        # the old ones in 'cryptostore' table, so next time decrypt_on_open
-        # has the new values available
         
         # Uptade table cryptostore with a new random salt for PBKDF2HMAC
         self.run_query(cte.QUERY_DELETE_CRYPTO)
-        salt_pbk_new = []
+        salt_pbk_new = list()
         salt_pbk_new.append([os.urandom(16)])
         for i in salt_pbk_new:
-            self.run_query(cte.QUERT_INSERT_CRYPTO,i)
+            self.run_query(cte.QUERT_INSERT_CRYPTO, i)
         
         self.session_key = self.crypto.pbkdf2hmac(self.introduced_pw, salt_pbk_new[0][0])
 
@@ -470,26 +467,9 @@ class Agenda:
         for i in size: counter += 1
         
         #IVSTORE
-        parameters_ivstore = []
-        for i in range(counter):
-            parameters_ivstore.append([])
-            for j in range(4):
-                parameters_ivstore[i].append(os.urandom(16))
-        
-        self.run_query(cte.QUERY_DELETE_IVSTORE)
-        for i in parameters_ivstore:
-            self.run_query(cte.QUERY_INSERT_IVSTORE, i)
-
+        parameters_ivstore = self.generate_new_params("iv", counter)
         #SALT_HMAC_STORE
-        parameters_salt_hmac_store = []
-        for i in range(counter):
-            parameters_salt_hmac_store.append([])
-            for j in range(4):
-                parameters_salt_hmac_store[i].append(os.urandom(16))
-        
-        self.run_query(cte.QUERY_DELETE_SALT_HMAC_STORE)
-        for i in parameters_salt_hmac_store:
-            self.run_query(cte.QUERY_INSERT_SALT_HMAC_STORE, i)
+        parameters_salt_hmac_store = self.generate_new_params("salt_hmac", counter)
 
         # Iterate throught each field of each contact and store separately ciphered data,
         # plain text and hmac of ciphered data in order to perform an update query on the database rows
@@ -530,8 +510,6 @@ class Agenda:
             param_list.append(parameters)
             param_hmac.append(hmac_data)
             
-            
-
         # UPDATE database by substituting encrypted data with decrypted data
         # Note: it is mandatory to exhaust db_rows before performing any other query: db_rows is a cursor
         #       pointing to the database, so the base is locked while db_rows is not totally read
@@ -546,4 +524,37 @@ class Agenda:
         # Close app
         self.wind.destroy()
         
+        
+    def certificate_not_verified(self, certificate_name):
+        """
+        Manage the error that occurs when a certificate is invalid
+        """
+        self.certificate_not_verified_screen = Toplevel(self.wind)
+        self.certificate_not_verified_screen.title(f"{certificate_name} not verified ")
+        self.certificate_not_verified_screen.geometry("500x75")
+        self.certificate_not_verified_screen.resizable(False, False)
+        Label(self.certificate_not_verified_screen, text=f"{certificate_name} not verified ", fg="red", font=("Open Sans", 14)).pack()
+        Button(self.certificate_not_verified_screen, text="OK", command=self.delete_certificate_not_verified).pack()
 
+    def delete_certificate_not_verified(self):
+        """
+        Destroy the certificate_not_verified window
+        """
+        self.certificate_not_verified_screen.destroy()
+           
+    def sign_not_verified(self):
+        """
+        Manage the error that occurs when a certificate is invalid
+        """
+        self.sign_not_verified_screen = Toplevel(self.wind)
+        self.sign_not_verified_screen.title("Signature is not verified ")
+        self.sign_not_verified_screen.geometry("500x75")
+        self.sign_not_verified_screen.resizable(False, False)
+        Label(self.sign_not_verified_screen, text="Session log file was not signed by A!", fg="red", font=("Open Sans", 14)).pack()
+        Button(self.sign_not_verified_screen, text="OK", command=self.delete_sign_not_verified).pack()
+
+    def delete_sign_not_verified(self):
+        """
+        Destroy the certificate_not_verified window
+        """
+        self.sign_not_verified_screen.destroy()
